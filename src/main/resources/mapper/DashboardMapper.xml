@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hktms.tsys.repository.DashboardMapper">
+
+    <select id="countTestByStatus" parameterType="string" resultType="long">
+        SELECT COUNT(*) FROM TB_HKTMS_TEST_CASE
+        WHERE test_status = #{status}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="countDefectByStatus" parameterType="string" resultType="long">
+        SELECT COUNT(*) FROM TB_HKTMS_DEFECT
+        WHERE defect_status = #{status}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="countByCategoryAndStatus" resultType="com.hktms.tsys.domain.DashboardDTO$CategoryProgressDTO">
+        SELECT
+            major_category,
+            COUNT(*) AS total_count,
+            COUNT(*) FILTER (WHERE test_status = 'SUCCESS') AS success_count,
+            COUNT(*) FILTER (WHERE test_status = 'FAIL')    AS fail_count
+        FROM TB_HKTMS_TEST_CASE
+        WHERE deleted_at IS NULL
+          AND major_category IS NOT NULL
+        GROUP BY major_category
+        ORDER BY major_category
+    </select>
+
+    <select id="countByStatus" parameterType="string" resultType="com.hktms.tsys.domain.DashboardDTO$CategoryProgressDTO">
+        SELECT
+            COUNT(*) AS total_count,
+            COUNT(*) FILTER (WHERE test_status = 'SUCCESS') AS success_count,
+            COUNT(*) FILTER (WHERE test_status = 'FAIL')    AS fail_count
+        FROM TB_HKTMS_TEST_CASE
+        WHERE deleted_at IS NULL
+    </select>
+
+</mapper>

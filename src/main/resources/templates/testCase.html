@@ -1,0 +1,267 @@
+﻿<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf"        th:name="_csrf"        th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:name="_csrf_header" th:content="${_csrf.headerName}">
+    <title>테스트 진행 관리 - TMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css">
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web">
+    <link rel="stylesheet" th:href="@{/css/index.css}">
+    <link rel="stylesheet" th:href="@{/css/testCase.css}">
+</head>
+<body>
+
+<div class="loading-overlay"><div class="loading-spinner"></div></div>
+
+<div class="app-layout">
+    <!-- 사이드바 -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img th:src="@{/img/customerCI.png}" alt="CI" class="logo-img">
+        </div>
+        <nav class="nav-menu">
+            <p class="nav-section-title">메뉴</p>
+            <a class="nav-item" th:href="@{/dashboard}"><i class="ph ph-squares-four nav-icon"></i><span>대시보드</span></a>
+            <a class="nav-item active" th:href="@{/testcase}"><i class="ph ph-clipboard-text nav-icon"></i><span>테스트 진행 관리</span></a>
+            <a class="nav-item" th:href="@{/defect}"><i class="ph ph-bug nav-icon"></i><span>결함 관리</span></a>
+            <a class="nav-item" th:href="@{/admin/users}"><i class="ph ph-users nav-icon"></i><span>사용자 관리</span></a>
+            <a class="nav-item" th:href="@{/admin/codes}"><i class="ph ph-tag nav-icon"></i><span>공통코드 관리</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <a class="nav-item" th:href="@{/logout}"><i class="ph ph-sign-out nav-icon"></i><span>로그아웃</span></a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="page-title">테스트 진행 관리</div>
+                <div class="page-subtitle">테스트 케이스를 등록하고 진행 상태를 관리합니다</div>
+            </div>
+            <div class="topbar-right">
+                <div class="timer-wrapper">
+                    <i class="ph ph-timer"></i>
+                    <span class="timer-display">60:00</span>
+                    <button class="btn-extend">연장</button>
+                </div>
+                <div class="user-info">
+                    <div class="avatar" id="userAvatar">-</div>
+                    <span class="user-name" id="userName">로딩중</span>
+                </div>
+                <a th:href="@{/logout}" class="btn-logout"><i class="ph ph-sign-out"></i></a>
+            </div>
+        </header>
+
+        <main class="content-area">
+            <!-- 필터 바 -->
+            <div class="filter-bar">
+                <input type="text" id="searchKeyword" class="form-control search-input" placeholder="테스트명, 대분류 검색">
+                <select id="searchStatus" class="form-control">
+                    <option value="">전체 상태</option>
+                    <option value="READY">미진행</option>
+                    <option value="IN_PROGRESS">진행중</option>
+                    <option value="SUCCESS">완료</option>
+                    <option value="FAIL">실패</option>
+                    <option value="HOLD">보류</option>
+                </select>
+                <input type="text" id="searchCategory" class="form-control" placeholder="대분류 필터" style="max-width:160px;">
+                <button class="btn btn-primary" id="btnSearch"><i class="ph ph-magnifying-glass"></i> 검색</button>
+                <div style="flex:1;"></div>
+                <div class="tc-toolbar">
+                    <button class="btn btn-secondary" id="btnExcelDownload"><i class="ph ph-microsoft-excel-logo"></i> 엑셀 다운로드</button>
+                    <button class="btn btn-secondary" id="btnExcelUpload"><i class="ph ph-upload"></i> 엑셀 업로드</button>
+                    <button class="btn btn-primary" id="btnCreate"><i class="ph ph-plus"></i> 신규 등록</button>
+                </div>
+            </div>
+            <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display:none;">
+
+            <!-- 테이블 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">테스트 케이스 목록</span>
+                    <span id="totalCount" class="badge badge-progress">0건</span>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>업무단위</th>
+                                    <th>대분류</th>
+                                    <th>중분류</th>
+                                    <th>소분류</th>
+                                    <th>테스트명</th>
+                                    <th>개발담당자</th>
+                                    <th>테스트담당자</th>
+                                    <th>가능여부</th>
+                                    <th>상태</th>
+                                    <th>완료일</th>
+                                    <th>재테스트</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tcTableBody">
+                                <tr><td colspan="13" class="empty-state" style="padding:40px;text-align:center;color:var(--text-muted);">데이터를 불러오는 중...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="tcPagination" style="padding:12px;"></div>
+                </div>
+            </div>
+        </main>
+        <footer class="page-footer">&copy; 2026 Test Management System. All rights reserved.</footer>
+    </div>
+</div>
+
+<!-- 등록/수정 모달 -->
+<div class="modal-overlay" id="tcFormModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <span class="modal-title" id="tcFormTitle">테스트케이스 등록</span>
+            <button class="modal-close" data-close="tcFormModal"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="tcId">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">업무단위 <span style="color:var(--danger-color);">*</span></label>
+                    <select id="tcBusinessUnit" class="form-control">
+                        <option value="">선택</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">대분류 <span style="color:var(--danger-color);">*</span></label>
+                    <select id="tcMajorCategory" class="form-control" disabled>
+                        <option value="">업무단위를 먼저 선택하세요</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">중분류 <span style="font-size:11px;color:var(--text-muted);">(선택)</span></label>
+                    <select id="tcMiddleCategory" class="form-control" disabled>
+                        <option value="">대분류를 먼저 선택하세요</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">소분류 <span style="font-size:11px;color:var(--text-muted);">(선택)</span></label>
+                    <select id="tcMinorCategory" class="form-control" disabled>
+                        <option value="">중분류를 먼저 선택하세요</option>
+                    </select>
+                </div>
+                <div class="form-group span-2">
+                    <label class="form-label">테스트명 <span style="color:var(--danger-color);">*</span></label>
+                    <input type="text" id="tcName" class="form-control" placeholder="테스트명 입력">
+                </div>
+                <div class="form-group span-2">
+                    <label class="form-label">테스트 내용</label>
+                    <textarea id="tcContent" class="form-control" rows="3" placeholder="테스트 내용을 입력하세요"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">개발 담당자</label>
+                    <select id="tcDeveloperId" class="form-control">
+                        <option value="">선택</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">테스트 담당자</label>
+                    <select id="tcTesterId" class="form-control">
+                        <option value="">선택</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">테스트 가능 여부</label>
+                    <select id="tcAvailable" class="form-control">
+                        <option value="true">가능</option>
+                        <option value="false">불가</option>
+                    </select>
+                </div>
+                <div class="form-group span-2">
+                    <label class="form-label">비고</label>
+                    <textarea id="tcRemark" class="form-control" rows="2" placeholder="비고 입력"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" data-close="tcFormModal">취소</button>
+            <button class="btn btn-primary" id="btnTcSave"><i class="ph ph-floppy-disk"></i> 저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 상태 변경 모달 -->
+<div class="modal-overlay" id="tcStatusModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">테스트 상태 변경</span>
+            <button class="modal-close" data-close="tcStatusModal"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="statusTcId">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">테스트 상태 <span style="color:var(--danger-color);">*</span></label>
+                    <select id="statusValue" class="form-control">
+                        <option value="READY">미진행</option>
+                        <option value="IN_PROGRESS">진행중</option>
+                        <option value="SUCCESS">완료</option>
+                        <option value="FAIL">실패</option>
+                        <option value="HOLD">보류</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">재테스트 요청</label>
+                    <select id="statusRetest" class="form-control">
+                        <option value="false">아니오</option>
+                        <option value="true">예</option>
+                    </select>
+                </div>
+                <div class="form-group span-2">
+                    <label class="form-label">테스트 결과</label>
+                    <textarea id="statusResult" class="form-control" rows="3" placeholder="테스트 결과를 입력하세요"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" data-close="tcStatusModal">취소</button>
+            <button class="btn btn-primary" id="btnStatusSave"><i class="ph ph-check"></i> 저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 엑셀 프리뷰 모달 -->
+<div class="modal-overlay" id="excelPreviewModal">
+    <div class="modal modal-xl">
+        <div class="modal-header">
+            <span class="modal-title">엑셀 업로드 미리보기</span>
+            <button class="modal-close" data-close="excelPreviewModal"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">오류 항목은 <span style="color:var(--danger-color); font-weight:600;">빨간색</span>으로 표시됩니다. 확인 후 최종 등록하세요.</p>
+            <div class="preview-table-wrapper">
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>행</th><th>대분류</th><th>중분류</th><th>소분류</th><th>테스트명</th><th>테스트내용</th><th>비고</th><th>오류</th>
+                        </tr>
+                    </thead>
+                    <tbody id="excelPreviewBody"></tbody>
+                </table>
+            </div>
+            <div style="margin-top:10px; font-size:12px; color:var(--text-muted);">
+                총 <strong id="previewTotalCount">0</strong>건 &nbsp;|&nbsp; 오류 <strong id="previewErrorCount" style="color:var(--danger-color);">0</strong>건
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" data-close="excelPreviewModal">취소</button>
+            <button class="btn btn-primary" id="btnExcelImport"><i class="ph ph-upload-simple"></i> 최종 등록</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/testCase.js}"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hktms.tsys.repository.AttachmentMapper">
+
+    <select id="findByReference" parameterType="com.hktms.tsys.domain.AttachmentDTO" resultType="com.hktms.tsys.domain.AttachmentDTO">
+        SELECT attachment_id, reference_type, reference_id,
+               original_filename, stored_filename, file_path, file_size, file_type, created_at
+        FROM TB_HKTMS_ATTACHMENT
+        WHERE reference_type = #{referenceType}
+          AND reference_id   = #{referenceId}
+          AND deleted_at IS NULL
+        ORDER BY created_at ASC
+    </select>
+
+    <select id="findById" parameterType="long" resultType="com.hktms.tsys.domain.AttachmentDTO">
+        SELECT attachment_id, reference_type, reference_id,
+               original_filename, stored_filename, file_path, file_size, file_type, created_at
+        FROM TB_HKTMS_ATTACHMENT
+        WHERE attachment_id = #{attachmentId}
+          AND deleted_at IS NULL
+    </select>
+
+    <insert id="insert" parameterType="com.hktms.tsys.domain.AttachmentDTO">
+        INSERT INTO TB_HKTMS_ATTACHMENT
+            (reference_type, reference_id, original_filename, stored_filename, file_path, file_size, file_type, created_id, created_at)
+        VALUES
+            (#{referenceType}, #{referenceId}, #{originalFilename}, #{storedFilename}, #{filePath}, #{fileSize}, #{fileType}, #{createdId}, NOW())
+    </insert>
+
+    <update id="softDelete" parameterType="com.hktms.tsys.domain.AttachmentDTO">
+        UPDATE TB_HKTMS_ATTACHMENT SET
+            deleted_id = #{deletedId},
+            deleted_at = NOW()
+        WHERE attachment_id = #{attachmentId}
+    </update>
+
+</mapper>

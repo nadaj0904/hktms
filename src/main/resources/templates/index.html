@@ -1,0 +1,220 @@
+﻿<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf"        th:name="_csrf"        th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:name="_csrf_header" th:content="${_csrf.headerName}">
+    <title>대시보드 - TMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css">
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web">
+    <link rel="stylesheet" th:href="@{/css/index.css}">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+</head>
+<body>
+
+<div class="loading-overlay"><div class="loading-spinner"></div></div>
+
+<div class="app-layout">
+    <!-- 사이드바 -->
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img th:src="@{/img/customerCI.png}" alt="CI" class="logo-img">
+        </div>
+        <nav class="nav-menu">
+            <p class="nav-section-title">메뉴</p>
+            <a class="nav-item active" th:href="@{/dashboard}">
+                <i class="ph ph-squares-four nav-icon"></i>
+                <span>대시보드</span>
+            </a>
+            <a class="nav-item" th:href="@{/testcase}">
+                <i class="ph ph-clipboard-text nav-icon"></i>
+                <span>테스트 진행 관리</span>
+            </a>
+            <a class="nav-item" th:href="@{/defect}">
+                <i class="ph ph-bug nav-icon"></i>
+                <span>결함 관리</span>
+            </a>
+            <a class="nav-item" th:href="@{/admin/users}">
+                <i class="ph ph-users nav-icon"></i>
+                <span>사용자 관리</span>
+            </a>
+            <a class="nav-item" th:href="@{/admin/codes}">
+                <i class="ph ph-tag nav-icon"></i>
+                <span>공통코드 관리</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <a class="nav-item" th:href="@{/logout}">
+                <i class="ph ph-sign-out nav-icon"></i>
+                <span>로그아웃</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- 메인 래퍼 -->
+    <div class="main-wrapper">
+        <!-- 상단 헤더 -->
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="page-title">대시보드</div>
+                <div class="page-subtitle">테스트 현황 및 결함 현황을 실시간으로 확인합니다</div>
+            </div>
+            <div class="topbar-right">
+                <div class="timer-wrapper">
+                    <i class="ph ph-timer"></i>
+                    <span class="timer-display">60:00</span>
+                    <button class="btn-extend">연장</button>
+                </div>
+                <div class="user-info">
+                    <div class="avatar" id="userAvatar">-</div>
+                    <span class="user-name" id="userName">로딩중</span>
+                </div>
+                <a th:href="@{/logout}" class="btn-logout" title="로그아웃">
+                    <i class="ph ph-sign-out"></i>
+                </a>
+            </div>
+        </header>
+
+        <!-- 본문 -->
+        <main class="content-area">
+
+            <!-- 테스트 요약 카드 -->
+            <div class="section-header" style="margin-bottom:12px;">
+                <h2 class="section-title">테스트 진행 현황</h2>
+                <a th:href="@{/testcase}" class="btn btn-secondary btn-sm"><i class="ph ph-arrow-right"></i> 상세 보기</a>
+            </div>
+
+            <div class="summary-grid" id="testSummaryGrid">
+                <article class="stat-card">
+                    <span class="stat-card-accent accent-total"></span>
+                    <i class="ph ph-clipboard-text stat-card-icon" style="color:#3b82f6;"></i>
+                    <div class="stat-card-value" id="totalTestCount">-</div>
+                    <div class="stat-card-label">전체 테스트 건수</div>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-card-accent accent-success"></span>
+                    <i class="ph ph-check-circle stat-card-icon" style="color:#22c55e;"></i>
+                    <div class="stat-card-value" id="successCount">-</div>
+                    <div class="stat-card-label">완료</div>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-card-accent accent-progress"></span>
+                    <i class="ph ph-spinner stat-card-icon" style="color:#f59e0b;"></i>
+                    <div class="stat-card-value" id="inProgressCount">-</div>
+                    <div class="stat-card-label">진행중</div>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-card-accent accent-fail"></span>
+                    <i class="ph ph-x-circle stat-card-icon" style="color:#ef4444;"></i>
+                    <div class="stat-card-value" id="failCount">-</div>
+                    <div class="stat-card-label">실패</div>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-card-accent accent-hold"></span>
+                    <i class="ph ph-pause-circle stat-card-icon" style="color:#94a3b8;"></i>
+                    <div class="stat-card-value" id="holdCount">-</div>
+                    <div class="stat-card-label">보류</div>
+                </article>
+                <article class="stat-card">
+                    <span class="stat-card-accent accent-ready"></span>
+                    <i class="ph ph-minus-circle stat-card-icon" style="color:#cbd5e1;"></i>
+                    <div class="stat-card-value" id="readyCount">-</div>
+                    <div class="stat-card-label">미진행</div>
+                </article>
+            </div>
+
+            <!-- 전체 진행률 -->
+            <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                    <span class="card-title">전체 테스트 진행률</span>
+                    <span id="testProgressRateBadge" class="badge badge-progress">-</span>
+                </div>
+                <div class="card-body">
+                    <div class="progress-bar-wrap" style="height:14px; border-radius:8px;">
+                        <div class="progress-bar success" id="testProgressBar" style="width:0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2단 레이아웃: 업무별 현황 + 결함 현황 -->
+            <div class="dashboard-grid">
+                <!-- 업무별 테스트 진행 현황 -->
+                <article class="card">
+                    <div class="card-header">
+                        <span class="card-title">업무별 테스트 진행 현황</span>
+                    </div>
+                    <div class="card-body progress-section" id="categoryProgressSection">
+                        <div class="empty-state"><div class="empty-icon"><i class="ph ph-chart-bar"></i></div><p>데이터를 불러오는 중...</p></div>
+                    </div>
+                </article>
+
+                <!-- 결함 현황 -->
+                <article class="card">
+                    <div class="card-header">
+                        <span class="card-title">결함 현황</span>
+                        <a th:href="@{/defect}" class="btn btn-secondary btn-sm"><i class="ph ph-arrow-right"></i> 상세 보기</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="summary-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:16px;">
+                            <article class="stat-card">
+                                <span class="stat-card-accent accent-defect"></span>
+                                <div class="stat-card-value" id="totalDefectCount">-</div>
+                                <div class="stat-card-label">전체 결함</div>
+                            </article>
+                            <article class="stat-card">
+                                <span class="stat-card-accent accent-fix-complete"></span>
+                                <div class="stat-card-value" id="fixCompleteCount">-</div>
+                                <div class="stat-card-label">조치완료</div>
+                            </article>
+                            <article class="stat-card">
+                                <span class="stat-card-accent accent-closed"></span>
+                                <div class="stat-card-value" id="closedCount">-</div>
+                                <div class="stat-card-label">종료</div>
+                            </article>
+                        </div>
+                        <div class="status-list">
+                            <div class="status-item">
+                                <div class="status-item-left">
+                                    <div class="status-dot" style="background:#a78bfa;"></div>
+                                    <span>분석중</span>
+                                </div>
+                                <span class="status-item-count" id="analysisCount">-</span>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-item-left">
+                                    <div class="status-dot" style="background:#fb923c;"></div>
+                                    <span>조치중</span>
+                                </div>
+                                <span class="status-item-count" id="fixingCount">-</span>
+                            </div>
+                            <div class="status-item">
+                                <div class="status-item-left">
+                                    <div class="status-dot" style="background:#3b82f6;"></div>
+                                    <span>재테스트중</span>
+                                </div>
+                                <span class="status-item-count" id="retestCount">-</span>
+                            </div>
+                        </div>
+                        <div class="progress-bar-wrap" style="height:10px; margin-top:16px; border-radius:8px;">
+                            <div class="progress-bar" id="defectProgressBar" style="width:0%; background:#8b5cf6;"></div>
+                        </div>
+                        <div style="text-align:right; font-size:12px; color:var(--text-muted); margin-top:4px;">
+                            결함 처리율 <strong id="defectProcessRate">-</strong>%
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </main>
+
+        <footer class="page-footer">
+            &copy; 2025 Test Management System. All rights reserved.
+        </footer>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/dashboard.js}"></script>
+</body>
+</html>

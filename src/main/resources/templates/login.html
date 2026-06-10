@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - TMS</title>
+    <link rel="stylesheet" th:href="@{/css/login.css}">
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web">
+</head>
+<body>
+
+<div class="login-wrapper">
+    <div class="login-card">
+        <!-- 고객사 CI -->
+        <div class="client-ci">
+            <img th:src="@{/img/customerCI.png}" alt="HK금융파트너스" class="client-ci-img">
+        </div>
+
+        <!-- 시스템명 -->
+        <div class="login-logo">
+            <i class="ph ph-test-tube logo-icon"></i>
+            <div class="system-name">HKTMS</div>
+            <div class="system-sub">Test Management System</div>
+        </div>
+
+        <!-- 에러 메시지 -->
+        <div class="alert-error" th:if="${param.error}">
+            <i class="ph ph-warning-circle"></i>
+            아이디 또는 비밀번호가 올바르지 않습니다.
+        </div>
+        <div class="alert-error" th:if="${param.expired}">
+            <i class="ph ph-clock"></i>
+            세션이 만료되었습니다. 다시 로그인해 주세요.
+        </div>
+        <div class="alert-success" th:if="${param.logout}">
+            <i class="ph ph-check-circle"></i>
+            로그아웃 되었습니다.
+        </div>
+
+        <p class="login-form-title">계정 정보를 입력해 주세요</p>
+
+        <form th:action="@{/login-process}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+            <div class="form-group">
+                <label class="form-label" for="loginId">아이디</label>
+                <div class="input-wrapper">
+                    <i class="ph ph-user input-icon"></i>
+                    <input type="text" id="loginId" name="loginId" value="admin" class="form-control"
+                           placeholder="아이디를 입력하세요" autocomplete="username" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">비밀번호</label>
+                <div class="input-wrapper">
+                    <i class="ph ph-lock input-icon"></i>
+                    <input type="password" id="password" name="password" class="form-control"
+                           placeholder="비밀번호를 입력하세요" autocomplete="current-password" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-login">
+                <i class="ph ph-sign-in"></i>
+                로그인
+            </button>
+        </form>
+
+        <!-- 개발사 CI -->
+        <div class="dev-ci">
+            <span class="dev-ci-label">Developed by</span>
+            <img th:src="@{/img/companyCI.png}" alt="tsis" class="dev-ci-img">
+        </div>
+    </div>
+</div>
+
+<div class="login-footer">
+    &copy; 2026 Test Management System. All rights reserved.
+</div>
+
+</body>
+</html>

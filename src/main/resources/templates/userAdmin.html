@@ -1,0 +1,169 @@
+﻿<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf"        th:name="_csrf"        th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:name="_csrf_header" th:content="${_csrf.headerName}">
+    <title>사용자 관리 - TMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css">
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web">
+    <link rel="stylesheet" th:href="@{/css/index.css}">
+    <link rel="stylesheet" th:href="@{/css/userAdmin.css}">
+</head>
+<body>
+
+<div class="loading-overlay"><div class="loading-spinner"></div></div>
+
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img th:src="@{/img/customerCI.png}" alt="CI" class="logo-img">
+        </div>
+        <nav class="nav-menu">
+            <p class="nav-section-title">메뉴</p>
+            <a class="nav-item" th:href="@{/dashboard}"><i class="ph ph-squares-four nav-icon"></i><span>대시보드</span></a>
+            <a class="nav-item" th:href="@{/testcase}"><i class="ph ph-clipboard-text nav-icon"></i><span>테스트 진행 관리</span></a>
+            <a class="nav-item" th:href="@{/defect}"><i class="ph ph-bug nav-icon"></i><span>결함 관리</span></a>
+            <a class="nav-item active" th:href="@{/admin/users}"><i class="ph ph-users nav-icon"></i><span>사용자 관리</span></a>
+            <a class="nav-item" th:href="@{/admin/codes}"><i class="ph ph-tag nav-icon"></i><span>공통코드 관리</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <a class="nav-item" th:href="@{/logout}"><i class="ph ph-sign-out nav-icon"></i><span>로그아웃</span></a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="page-title">사용자 관리</div>
+                <div class="page-subtitle">시스템 사용자를 등록하고 권한을 관리합니다</div>
+            </div>
+            <div class="topbar-right">
+                <div class="timer-wrapper">
+                    <i class="ph ph-timer"></i>
+                    <span class="timer-display">60:00</span>
+                    <button class="btn-extend">연장</button>
+                </div>
+                <div class="user-info">
+                    <div class="avatar" id="userAvatar">-</div>
+                    <span class="user-name" id="userName">로딩중</span>
+                </div>
+                <a th:href="@{/logout}" class="btn-logout"><i class="ph ph-sign-out"></i></a>
+            </div>
+        </header>
+
+        <main class="content-area">
+            <!-- 필터 바 -->
+            <div class="filter-bar">
+                <input type="text" id="searchKeyword" class="form-control search-input" placeholder="이름, 아이디, 이메일 검색">
+                <select id="searchRole" class="form-control">
+                    <option value="">전체 역할</option>
+                    <option value="PMO">PMO</option>
+                    <option value="DEVELOPER">개발자</option>
+                    <option value="USER">현업 사용자</option>
+                </select>
+                <button class="btn btn-primary" id="btnSearch"><i class="ph ph-magnifying-glass"></i> 검색</button>
+                <div style="flex:1;"></div>
+                <button class="btn btn-primary" id="btnCreate"><i class="ph ph-user-plus"></i> 사용자 등록</button>
+            </div>
+
+            <!-- 테이블 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">사용자 목록</span>
+                    <span id="totalCount" class="badge badge-progress">0건</span>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>이름</th>
+                                    <th>아이디</th>
+                                    <th>소속</th>
+                                    <th>역할</th>
+                                    <th>이메일</th>
+                                    <th>연락처</th>
+                                    <th>사용여부</th>
+                                    <th>등록일</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody">
+                                <tr><td colspan="10" style="text-align:center;padding:40px;color:var(--text-muted);">데이터를 불러오는 중...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="userPagination" style="padding:12px;"></div>
+                </div>
+            </div>
+        </main>
+        <footer class="page-footer">&copy; 2026 Test Management System. All rights reserved.</footer>
+    </div>
+</div>
+
+<!-- 등록/수정 모달 -->
+<div class="modal-overlay" id="userFormModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <span class="modal-title" id="userFormTitle">사용자 등록</span>
+            <button class="modal-close" data-close="userFormModal"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="userId">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">아이디 <span style="color:var(--danger-color);">*</span></label>
+                    <input type="text" id="userLoginId" class="form-control" placeholder="로그인 아이디">
+                </div>
+                <div class="form-group" id="passwordGroup">
+                    <label class="form-label">비밀번호 <span style="color:var(--danger-color);">*</span></label>
+                    <input type="password" id="userPassword" class="form-control" placeholder="비밀번호 입력">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">이름 <span style="color:var(--danger-color);">*</span></label>
+                    <input type="text" id="userNameInput" class="form-control" placeholder="이름 입력">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">소속</label>
+                    <input type="text" id="userOrganization" class="form-control" placeholder="소속 기관/회사">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">역할 <span style="color:var(--danger-color);">*</span></label>
+                    <select id="userRole" class="form-control">
+                        <option value="USER">현업 사용자</option>
+                        <option value="DEVELOPER">개발자</option>
+                        <option value="PMO">PMO</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">사용 여부</label>
+                    <select id="userIsActive" class="form-control">
+                        <option value="true">사용</option>
+                        <option value="false">미사용</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">이메일</label>
+                    <input type="email" id="userEmail" class="form-control" placeholder="이메일 주소">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">연락처</label>
+                    <input type="text" id="userPhone" class="form-control" placeholder="연락처">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" data-close="userFormModal">취소</button>
+            <button class="btn btn-primary" id="btnUserSave"><i class="ph ph-floppy-disk"></i> 저장</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/userAdmin.js}"></script>
+</body>
+</html>

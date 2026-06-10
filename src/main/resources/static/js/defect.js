@@ -1,0 +1,366 @@
+var currentPage = 1;
+var currentSize  = 20;
+var currentDefectId = null;
+
+$(function () {
+    loadCodes();
+    loadList();
+    bindEvents();
+    loadUserInfo();
+});
+
+function loadUserInfo() {
+    sendAjax('/api/v1/session/user', 'GET', null, function (res) {
+        const u = res.data;
+        if (u) { $('#userAvatar').text(u.userName.charAt(0)); $('#userName').text(u.userName + ' 님'); }
+    }, function(){});
+}
+
+/* =========================================
+   코드 로드
+   ========================================= */
+function loadCodes() {
+    sendAjax('/api/v1/defect/codes', 'GET', null, function (res) {
+        const devs = res.data.developers || [];
+        const $dev = $('#defectDeveloperId');
+        devs.forEach(function (u) {
+            $dev.append('<option value="' + u.userId + '">' + escHtml(u.userName) + ' (' + (u.organization||'') + ')</option>');
+        });
+
+        const biz = res.data.businessCategories || [];
+        const $biz = $('#defectBusinessUnit');
+        biz.forEach(function (c) {
+            $biz.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
+        });
+    }, function(){});
+}
+
+/* =========================================
+   카스케이드 드롭다운
+   ========================================= */
+function loadMajorCategories(businessUnit, selectedValue) {
+    var url = '/api/v1/defect/categories?businessUnit=' + encodeURIComponent(businessUnit) + '&level=MAJOR';
+    sendAjax(url, 'GET', null, function (res) {
+        var $sel = $('#defectMajorCategory').empty()
+            .append('<option value="">선택</option>')
+            .prop('disabled', false);
+        (res.data || []).forEach(function (c) {
+            $sel.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
+        });
+        if (selectedValue) $sel.val(selectedValue);
+    }, function(){});
+}
+
+function loadMiddleCategories(businessUnit, majorCodeValue, selectedValue) {
+    var url = '/api/v1/defect/categories?businessUnit=' + encodeURIComponent(businessUnit)
+            + '&level=MIDDLE&parentCodeValue=' + encodeURIComponent(majorCodeValue);
+    sendAjax(url, 'GET', null, function (res) {
+        var $sel = $('#defectMiddleCategory').empty()
+            .append('<option value="">선택 (선택사항)</option>')
+            .prop('disabled', false);
+        (res.data || []).forEach(function (c) {
+            $sel.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
+        });
+        if (selectedValue) $sel.val(selectedValue);
+    }, function(){});
+}
+
+/* =========================================
+   목록 조회
+   ========================================= */
+function loadList(page) {
+    currentPage = page || 1;
+    const param = {
+        keyword: $('#searchKeyword').val(),
+        searchStatus: $('#searchStatus').val(),
+        page: currentPage,
+        size: currentSize
+    };
+    sendAjax('/api/v1/defect?' + $.param(param), 'GET', null, function (res) {
+        renderTable(res.data.list || []);
+        $('#totalCount').text(res.data.total + '건');
+        renderPagination($('#defectPagination'), res.data.total, currentPage, currentSize, loadList);
+    });
+}
+
+/* =========================================
+   테이블 렌더링
+   ========================================= */
+function renderTable(list) {
+    const $body = $('#defectTableBody');
+    $body.empty();
+    if (!list.length) {
+        $body.html('<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">데이터가 없습니다.</td></tr>');
+        return;
+    }
+    list.forEach(function (item, idx) {
+        const no = (currentPage - 1) * currentSize + idx + 1;
+        const finalBadge = item.isFinalClosed
+            ? '<span class="final-closed-badge closed">종료</span>'
+            : '<span class="final-closed-badge">미종료</span>';
+        let buCell;
+        if (item.businessUnitName) {
+            buCell = escHtml(item.businessUnitName);
+            if (item.majorCategoryName) {
+                buCell += '<br><small style="color:var(--text-muted);">' + escHtml(item.majorCategoryName) + '</small>';
+            }
+        } else {
+            buCell = escHtml(item.businessName || '-');
+        }
+        const tr = `<tr>
+            <td>${no}</td>
+            <td>${buCell}</td>
+            <td style="max-width:180px;" title="${escHtml(item.title)}">${escHtml(item.title)}</td>
+            <td>${escHtml(item.testCaseName||'-')}</td>
+            <td>${escHtml(item.registrantName||'-')}</td>
+            <td>${escHtml(item.developerName||'-')}</td>
+            <td>${defectStatusBadge(item.defectStatus)}</td>
+            <td><span class="fix-content-cell" title="${escHtml(item.fixContent)}">${escHtml(item.fixContent||'-')}</span></td>
+            <td>${finalBadge}</td>
+            <td>${formatDateTime(item.createdAt)}</td>
+            <td style="white-space:nowrap;">
+                <div style="display:flex;gap:4px;">
+                    <button class="btn btn-primary btn-sm btn-status-change" data-id="${item.defectId}"><i class="ph ph-arrows-clockwise"></i> 상태변경</button>
+                    <button class="btn btn-secondary btn-sm btn-edit" data-id="${item.defectId}"><i class="ph ph-pencil-simple"></i> 수정</button>
+                    <button class="btn btn-danger btn-sm btn-delete" data-id="${item.defectId}"><i class="ph ph-trash"></i> 삭제</button>
+                </div>
+            </td>
+        </tr>`;
+        $body.append(tr);
+    });
+}
+
+/* =========================================
+   이벤트 바인딩
+   ========================================= */
+function bindEvents() {
+    $('#btnSearch').on('click', function () { loadList(1); });
+    $('#searchKeyword').on('keypress', function (e) { if (e.key === 'Enter') loadList(1); });
+    $('#btnCreate').on('click', openCreateModal);
+    $('#btnDefectSave').on('click', saveDefect);
+    $('#btnDefectStatusSave').on('click', saveDefectStatus);
+
+    // 업무단위 변경 → 대분류 로드
+    $('#defectBusinessUnit').on('change', function () {
+        var bu = $(this).val();
+        $('#defectMajorCategory').empty().append('<option value="">선택</option>').prop('disabled', !bu);
+        $('#defectMiddleCategory').empty().append('<option value="">대분류를 먼저 선택하세요</option>').prop('disabled', true);
+        if (bu) loadMajorCategories(bu, null);
+    });
+
+    // 대분류 변경 → 중분류 로드
+    $('#defectMajorCategory').on('change', function () {
+        var bu  = $('#defectBusinessUnit').val();
+        var maj = $(this).val();
+        $('#defectMiddleCategory').empty().append('<option value="">선택 (선택사항)</option>').prop('disabled', !maj);
+        if (bu && maj) loadMiddleCategories(bu, maj, null);
+    });
+
+    $(document).on('click', '[data-close]', function () { closeModal($(this).data('close')); });
+    // 결함 등록/수정 모달은 배경 클릭으로 닫히지 않도록 제외
+    $(document).on('click', '.modal-overlay', function (e) {
+        if ($(e.target).hasClass('modal-overlay')) {
+            var id = $(e.target).attr('id');
+            if (id !== 'defectFormModal') closeModal(id);
+        }
+    });
+
+    $('#defectTableBody').on('click', '.btn-edit', function () { openEditModal($(this).data('id')); });
+    $('#defectTableBody').on('click', '.btn-delete', function () {
+        if (confirm('삭제하시겠습니까?')) deleteDefect($(this).data('id'));
+    });
+    $('#defectTableBody').on('click', '.btn-status-change', function () { openStatusModal($(this).data('id')); });
+
+    // 상태 선택 시 스텝 업데이트
+    $('#defectStatusValue').on('change', function () { updateStatusSteps($(this).val()); });
+
+    // 첨부파일 추가
+    $('#btnAddAttachment').on('click', function () { $('#attachmentInput').click(); });
+    $('#attachmentInput').on('change', function () {
+        if (currentDefectId && this.files.length) {
+            uploadAttachment(this.files[0]);
+        }
+    });
+}
+
+/* =========================================
+   등록 모달
+   ========================================= */
+function openCreateModal() {
+    currentDefectId = null;
+    $('#defectFormTitle').text('결함 등록');
+    $('#defectId').val('');
+    $('#defectBusinessUnit').val('');
+    $('#defectMajorCategory').empty().append('<option value="">업무단위를 먼저 선택하세요</option>').prop('disabled', true);
+    $('#defectMiddleCategory').empty().append('<option value="">대분류를 먼저 선택하세요</option>').prop('disabled', true);
+    $('#defectTitle, #defectContent, #defectFixContent').val('');
+    $('#defectDeveloperId').val('');
+    $('#attachmentSection').hide();
+    $('#attachmentList').empty();
+    openModal('defectFormModal');
+}
+
+function openEditModal(defectId) {
+    sendAjax('/api/v1/defect/' + defectId, 'GET', null, function (res) {
+        const d = res.data;
+        currentDefectId = d.defectId;
+        $('#defectFormTitle').text('결함 수정');
+        $('#defectId').val(d.defectId);
+        $('#defectTitle').val(d.title);
+        $('#defectContent').val(d.content || '');
+        $('#defectFixContent').val(d.fixContent || '');
+        $('#defectDeveloperId').val(d.developerId || '');
+
+        // 카스케이드 드롭다운 복원
+        $('#defectMajorCategory').empty().append('<option value="">선택</option>').prop('disabled', true);
+        $('#defectMiddleCategory').empty().append('<option value="">선택 (선택사항)</option>').prop('disabled', true);
+        $('#defectBusinessUnit').val(d.businessUnit || '');
+
+        if (d.businessUnit) {
+            loadMajorCategories(d.businessUnit, d.majorCategory || null);
+            if (d.majorCategory) {
+                loadMiddleCategories(d.businessUnit, d.majorCategory, d.middleCategory || null);
+            }
+        }
+
+        $('#attachmentSection').show();
+        renderAttachments(d.attachments || []);
+        openModal('defectFormModal');
+    });
+}
+
+function saveDefect() {
+    const businessUnit   = $('#defectBusinessUnit').val();
+    const majorCategory  = $('#defectMajorCategory').val();
+    const title          = $('#defectTitle').val().trim();
+    const content        = $('#defectContent').val().trim();
+
+    if (!businessUnit)  { alert('업무단위는 필수 선택입니다.'); return; }
+    if (!majorCategory) { alert('대분류는 필수 선택입니다.'); return; }
+    if (!title)         { alert('제목은 필수 입력입니다.'); return; }
+    if (!content)       { alert('상세내용은 필수 입력입니다.'); return; }
+
+    const data = {
+        businessUnit:   businessUnit,
+        majorCategory:  majorCategory,
+        middleCategory: $('#defectMiddleCategory').val() || null,
+        title:          title,
+        content:        content,
+        fixContent:     $('#defectFixContent').val().trim() || null,
+        developerId:    $('#defectDeveloperId').val() || null
+    };
+    const defectId = $('#defectId').val();
+    const url    = defectId ? '/api/v1/defect/' + defectId : '/api/v1/defect';
+    const method = defectId ? 'PUT' : 'POST';
+
+    sendAjax(url, method, data, function () {
+        closeModal('defectFormModal');
+        loadList(defectId ? currentPage : 1);
+    });
+}
+
+function deleteDefect(defectId) {
+    sendAjax('/api/v1/defect/' + defectId, 'DELETE', null, function () { loadList(currentPage); });
+}
+
+/* =========================================
+   상태 변경 모달
+   ========================================= */
+function openStatusModal(defectId) {
+    sendAjax('/api/v1/defect/' + defectId, 'GET', null, function (res) {
+        const d = res.data;
+        $('#statusDefectId').val(d.defectId);
+        $('#defectStatusValue').val(d.defectStatus || 'ANALYSIS');
+        $('#defectFinalClosed').val(d.isFinalClosed ? 'true' : 'false');
+        $('#defectStatusFixContent').val(d.fixContent || '');
+        updateStatusSteps(d.defectStatus || 'ANALYSIS');
+        openModal('defectStatusModal');
+    });
+}
+
+function saveDefectStatus() {
+    const defectId = $('#statusDefectId').val();
+    const data = {
+        defectStatus:  $('#defectStatusValue').val(),
+        isFinalClosed: $('#defectFinalClosed').val() === 'true',
+        fixContent:    $('#defectStatusFixContent').val().trim() || null
+    };
+    sendAjax('/api/v1/defect/' + defectId + '/status', 'PUT', data, function () {
+        closeModal('defectStatusModal');
+        loadList(currentPage);
+    });
+}
+
+function updateStatusSteps(currentStatus) {
+    const order = ['ANALYSIS', 'FIXING', 'FIX_COMPLETE', 'RETEST', 'CLOSED'];
+    const currentIdx = order.indexOf(currentStatus);
+    $('.step-item').each(function (i) {
+        $(this).removeClass('active done');
+        if (i < currentIdx) $(this).addClass('done');
+        else if (i === currentIdx) $(this).addClass('active');
+    });
+}
+
+/* =========================================
+   첨부파일
+   ========================================= */
+function renderAttachments(list) {
+    const $list = $('#attachmentList');
+    $list.empty();
+    if (!list.length) {
+        $list.html('<p style="font-size:12px;color:var(--text-muted);">첨부파일이 없습니다.</p>');
+        return;
+    }
+    list.forEach(function (a) {
+        const size = a.fileSize ? (a.fileSize / 1024).toFixed(1) + 'KB' : '';
+        const item = `<div class="attachment-item" data-id="${a.attachmentId}">
+            <div class="attachment-item-left">
+                <i class="ph ph-paperclip attachment-icon"></i>
+                <div>
+                    <a href="/api/v1/attachment/${a.attachmentId}/download" class="attachment-name">${escHtml(a.originalFilename)}</a>
+                    <div class="attachment-size">${size}</div>
+                </div>
+            </div>
+            <button class="btn btn-danger btn-sm btn-icon btn-del-attachment" data-id="${a.attachmentId}"><i class="ph ph-x"></i></button>
+        </div>`;
+        $list.append(item);
+    });
+
+    $list.on('click', '.btn-del-attachment', function () {
+        const attachId = $(this).data('id');
+        if (confirm('첨부파일을 삭제하시겠습니까?')) {
+            sendAjax('/api/v1/attachment/' + attachId, 'DELETE', null, function () {
+                openEditModal(currentDefectId);
+            });
+        }
+    });
+}
+
+function uploadAttachment(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('referenceType', 'DEFECT');
+    formData.append('referenceId', currentDefectId);
+    showLoading();
+    $.ajax({
+        url: '/api/v1/attachment/upload',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function (res) {
+            hideLoading();
+            if (!res.success) { alert('업로드 실패: ' + res.message); return; }
+            openEditModal(currentDefectId);
+        },
+        error: function () { hideLoading(); alert('파일 업로드 중 오류가 발생했습니다.'); }
+    });
+}
+
+/* =========================================
+   모달 유틸
+   ========================================= */
+function openModal(id)  { $('#' + id).addClass('open'); }
+function closeModal(id) { $('#' + id).removeClass('open'); }
+function escHtml(str)   { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

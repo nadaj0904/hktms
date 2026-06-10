@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hktms.tsys.repository.AuditLogMapper">
+
+    <insert id="insert" parameterType="map">
+        INSERT INTO TB_HKTMS_AUDIT_LOG
+            (log_type, actor_id, actor_name, reference_id, before_value, after_value, description, ip_address, created_at)
+        VALUES
+            (#{logType}, #{actorId}, #{actorName}, #{referenceId}, #{beforeValue}, #{afterValue}, #{description}, #{ipAddress}, NOW())
+    </insert>
+
+</mapper>

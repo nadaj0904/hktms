@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf"        th:name="_csrf"        th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:name="_csrf_header" th:content="${_csrf.headerName}">
+    <title>공통코드 관리 - TMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css">
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web">
+    <link rel="stylesheet" th:href="@{/css/index.css}">
+    <link rel="stylesheet" th:href="@{/css/codeAdmin.css}">
+</head>
+<body>
+
+<div class="loading-overlay"><div class="loading-spinner"></div></div>
+
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img th:src="@{/img/customerCI.png}" alt="CI" class="logo-img">
+        </div>
+        <nav class="nav-menu">
+            <p class="nav-section-title">메뉴</p>
+            <a class="nav-item" th:href="@{/dashboard}"><i class="ph ph-squares-four nav-icon"></i><span>대시보드</span></a>
+            <a class="nav-item" th:href="@{/testcase}"><i class="ph ph-clipboard-text nav-icon"></i><span>테스트 진행 관리</span></a>
+            <a class="nav-item" th:href="@{/defect}"><i class="ph ph-bug nav-icon"></i><span>결함 관리</span></a>
+            <a class="nav-item" th:href="@{/admin/users}"><i class="ph ph-users nav-icon"></i><span>사용자 관리</span></a>
+            <a class="nav-item active" th:href="@{/admin/codes}"><i class="ph ph-tag nav-icon"></i><span>공통코드 관리</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <a class="nav-item" th:href="@{/logout}"><i class="ph ph-sign-out nav-icon"></i><span>로그아웃</span></a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="page-title">공통코드 관리</div>
+                <div class="page-subtitle">시스템에서 사용하는 공통 코드를 등록하고 관리합니다</div>
+            </div>
+            <div class="topbar-right">
+                <div class="timer-wrapper">
+                    <i class="ph ph-timer"></i>
+                    <span class="timer-display">60:00</span>
+                    <button class="btn-extend">연장</button>
+                </div>
+                <div class="user-info">
+                    <div class="avatar" id="userAvatar">-</div>
+                    <span class="user-name" id="userName">로딩중</span>
+                </div>
+                <a th:href="@{/logout}" class="btn-logout"><i class="ph ph-sign-out"></i></a>
+            </div>
+        </header>
+
+        <main class="content-area">
+            <div class="code-admin-layout">
+
+                <!-- 왼쪽: 코드 그룹 패널 -->
+                <div class="panel panel-group">
+                    <div class="panel-header">
+                        <span class="panel-title"><i class="ph ph-folders"></i> 코드 그룹</span>
+                        <button class="btn btn-primary btn-sm" id="btnCreateGroup">
+                            <i class="ph ph-plus"></i> 그룹 추가
+                        </button>
+                    </div>
+                    <div class="panel-filter">
+                        <select id="filterBusinessUnit" class="form-control form-control-sm">
+                            <option value="">전체 업무단위</option>
+                            <option value="SYSTEM">시스템</option>
+                            <option value="HR">조직인사</option>
+                            <option value="SALES">영업</option>
+                        </select>
+                        <select id="filterCategoryLevel" class="form-control form-control-sm">
+                            <option value="">전체 분류</option>
+                            <option value="SYSTEM">시스템</option>
+                            <option value="MAJOR">대분류</option>
+                            <option value="MIDDLE">중분류</option>
+                            <option value="MINOR">소분류</option>
+                        </select>
+                    </div>
+                    <div class="panel-body" id="groupListArea">
+                        <div class="empty-msg">로딩 중...</div>
+                    </div>
+                </div>
+
+                <!-- 오른쪽: 코드 패널 -->
+                <div class="panel panel-code">
+                    <div class="panel-header">
+                        <span class="panel-title"><i class="ph ph-list-bullets"></i> 코드 목록
+                            <span class="selected-group-badge" id="selectedGroupBadge" style="display:none;"></span>
+                        </span>
+                        <button class="btn btn-primary btn-sm" id="btnCreateCode" disabled>
+                            <i class="ph ph-plus"></i> 코드 추가
+                        </button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="empty-msg" id="codeEmptyMsg">← 왼쪽에서 코드 그룹을 선택하세요</div>
+                        <div class="table-wrapper" id="codeTableWrapper" style="display:none;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>No.</th>
+                                        <th>코드값</th>
+                                        <th>코드명</th>
+                                        <th>순서</th>
+                                        <th>사용여부</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="codeTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <footer class="page-footer">&copy; 2025 Test Management System. All rights reserved.</footer>
+    </div>
+</div>
+
+<!-- 코드 그룹 등록/수정 모달 -->
+<div class="modal-overlay" id="groupFormModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="groupFormTitle">코드 그룹 등록</span>
+            <button class="modal-close" data-close="groupFormModal"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="codeGroupId">
+            <div class="form-group">
+                <label class="form-label">그룹코드 <span class="required">*</span></label>
+                <input type="text" id="groupCode" class="form-control" placeholder="예) TEST_STATUS" style="text-transform:uppercase;">
+            </div>
+            <div class="form-group">
+                <label class="form-label">그룹명 <span class="required">*</span></label>
+                <input type="text" id="groupName" class="form-control" placeholder="그룹명 입력">
+            </div>
+            <div class="form-group">
+                <label class="form-label">설명</label>
+                <input type="text" id="groupDescription" class="form-control" placeholder="그룹 설명 입력">
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label">업무단위</label>
+                    <select id="groupBusinessUnit" class="form-control">
+                        <option value="">선택 안함 (시스템)</option>
+                        <option value="HR">조직인사</option>
+                        <option value="SALES">영업</option>
+                        <option value="ADMIN">어드민</option>
+                        <option value="AUTH">권한관리</option>
+                        <option value="COMPLIANCE">준법</option>
+                        <option value="DB">DB관리</option>
+                        <option value="COMMON">공통지원</option>
+                        <option value="COMMISSION">위촉지원</option>
+                        <option value="REPORT">리포트</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">분류수준</label>
+                    <select id="groupCategoryLevel" class="form-control">
+                        <option value="SYSTEM">시스템</option>
+                        <option value="MAJOR">대분류</option>
+                        <option value="MIDDLE">중분류</option>
+                        <option value="MINOR">소분류</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" id="parentGroupRow" style="display:none;">
+                <label class="form-label">상위그룹코드 <span style="font-size:11px;color:var(--text-muted);">(중분류/소분류일 때 대분류 그룹코드 입력)</span></label>
+                <select id="groupParentGroupCode" class="form-control">
+                    <option value="">선택</option>
+                </select>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label">정렬순서</label>
+                    <input type="number" id="groupSortOrder" class="form-control" placeholder="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">사용여부</label>
+                    <select id="groupIsActive" class="form-control">
+                        <option value="true">사용</option>
+                        <option value="false">미사용</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" data-close="groupFormModal">취소</button>
+            <button class="btn btn-primary" id="btnGroupSave"><i class="ph ph-floppy-disk"></i> 저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 코드 등록/수정 모달 -->
+<div class="modal-overlay" id="codeFormModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="codeFormTitle">코드 등록</span>
+            <button class="modal-close" data-close="codeFormModal"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="codeId">
+            <input type="hidden" id="codeGroupIdForCode">
+            <div class="form-group">
+                <label class="form-label">코드값 <span class="required">*</span></label>
+                <input type="text" id="codeValue" class="form-control" placeholder="예) READY">
+            </div>
+            <div class="form-group">
+                <label class="form-label">코드명 <span class="required">*</span></label>
+                <input type="text" id="codeName" class="form-control" placeholder="예) 준비">
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label class="form-label">정렬순서</label>
+                    <input type="number" id="codeSortOrder" class="form-control" placeholder="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">사용여부</label>
+                    <select id="codeIsActive" class="form-control">
+                        <option value="true">사용</option>
+                        <option value="false">미사용</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" data-close="codeFormModal">취소</button>
+            <button class="btn btn-primary" id="btnCodeSave"><i class="ph ph-floppy-disk"></i> 저장</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/codeAdmin.js}"></script>
+</body>
+</html>

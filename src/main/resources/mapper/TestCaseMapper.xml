@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hktms.tsys.repository.TestCaseMapper">
+
+    <sql id="baseColumns">
+        tc.test_case_id, tc.business_unit,
+        tc.major_category, tc.middle_category, tc.minor_category,
+        tc.test_case_name, tc.test_content,
+        tc.developer_id, du.user_name AS developer_name,
+        tc.tester_id,    tu.user_name AS tester_name,
+        tc.is_test_available, tc.test_status,
+        sc.code_name AS test_status_name,
+        tc.test_result, tc.completed_date, tc.is_retest_requested, tc.remark,
+        tc.created_id, tc.created_at, tc.updated_id, tc.updated_at,
+        bu_c.code_name  AS business_unit_name,
+        maj_c.code_name AS major_category_name,
+        mid_c.code_name AS middle_category_name,
+        min_c.code_name AS minor_category_name
+    </sql>
+
+    <sql id="categoryJoins">
+        LEFT JOIN TB_HKTMS_CODE bu_c ON bu_c.code_value = tc.business_unit
+            AND bu_c.deleted_at IS NULL
+            AND bu_c.code_group_id = (SELECT code_group_id FROM TB_HKTMS_CODE_GROUP WHERE group_code = 'BUSINESS_CATEGORY' AND deleted_at IS NULL LIMIT 1)
+        LEFT JOIN TB_HKTMS_CODE maj_c ON maj_c.code_value = tc.major_category
+            AND maj_c.deleted_at IS NULL
+            AND maj_c.code_group_id = (SELECT code_group_id FROM TB_HKTMS_CODE_GROUP WHERE group_code = tc.business_unit || '_MAJOR' AND deleted_at IS NULL LIMIT 1)
+        LEFT JOIN TB_HKTMS_CODE mid_c ON mid_c.code_value = tc.middle_category
+            AND mid_c.deleted_at IS NULL
+            AND mid_c.code_group_id = (SELECT g.code_group_id FROM TB_HKTMS_CODE_GROUP g WHERE g.business_unit = tc.business_unit AND g.category_level = 'MIDDLE' AND g.parent_code_value = tc.major_category AND g.deleted_at IS NULL LIMIT 1)
+        LEFT JOIN TB_HKTMS_CODE min_c ON min_c.code_value = tc.minor_category
+            AND min_c.deleted_at IS NULL
+            AND min_c.code_group_id = (SELECT g.code_group_id FROM TB_HKTMS_CODE_GROUP g WHERE g.business_unit = tc.business_unit AND g.category_level = 'MINOR' AND g.parent_code_value = tc.middle_category AND g.deleted_at IS NULL LIMIT 1)
+    </sql>
+
+    <sql id="searchCondition">
+        <where>
+            tc.deleted_at IS NULL
+            <if test="keyword != null and keyword != ''">
+                AND (tc.test_case_name ILIKE '%' || #{keyword} || '%'
+                  OR tc.major_category  ILIKE '%' || #{keyword} || '%'
+                  OR tc.minor_category  ILIKE '%' || #{keyword} || '%')
+            </if>
+            <if test="searchStatus != null and searchStatus != ''">
+                AND tc.test_status = #{searchStatus}
+            </if>
+            <if test="searchCategory != null and searchCategory != ''">
+                AND tc.major_category = #{searchCategory}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findAll" parameterType="com.hktms.tsys.domain.TestCaseDTO" resultType="com.hktms.tsys.domain.TestCaseDTO">
+        SELECT <include refid="baseColumns"/>
+        FROM TB_HKTMS_TEST_CASE tc
+        LEFT JOIN TB_HKTMS_USER du ON du.user_id = tc.developer_id
+        LEFT JOIN TB_HKTMS_USER tu ON tu.user_id = tc.tester_id
+        LEFT JOIN TB_HKTMS_CODE sc ON sc.code_value = tc.test_status
+            AND sc.code_group_id = (SELECT code_group_id FROM TB_HKTMS_CODE_GROUP WHERE group_code = 'TEST_STATUS' AND deleted_at IS NULL LIMIT 1)
+        <include refid="categoryJoins"/>
+        <include refid="searchCondition"/>
+        ORDER BY tc.test_case_id ASC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" parameterType="com.hktms.tsys.domain.TestCaseDTO" resultType="int">
+        SELECT COUNT(*) FROM TB_HKTMS_TEST_CASE tc
+        <include refid="searchCondition"/>
+    </select>
+
+    <select id="findById" parameterType="long" resultType="com.hktms.tsys.domain.TestCaseDTO">
+        SELECT <include refid="baseColumns"/>
+        FROM TB_HKTMS_TEST_CASE tc
+        LEFT JOIN TB_HKTMS_USER du ON du.user_id = tc.developer_id
+        LEFT JOIN TB_HKTMS_USER tu ON tu.user_id = tc.tester_id
+        LEFT JOIN TB_HKTMS_CODE sc ON sc.code_value = tc.test_status
+            AND sc.code_group_id = (SELECT code_group_id FROM TB_HKTMS_CODE_GROUP WHERE group_code = 'TEST_STATUS' AND deleted_at IS NULL LIMIT 1)
+        <include refid="categoryJoins"/>
+        WHERE tc.test_case_id = #{testCaseId}
+          AND tc.deleted_at IS NULL
+    </select>
+
+    <insert id="insert" parameterType="com.hktms.tsys.domain.TestCaseDTO">
+        INSERT INTO TB_HKTMS_TEST_CASE
+            (business_unit, major_category, middle_category, minor_category,
+             test_case_name, test_content,
+             developer_id, tester_id, is_test_available, test_status, remark,
+             created_id, created_at)
+        VALUES
+            (#{businessUnit}, #{majorCategory}, #{middleCategory}, #{minorCategory},
+             #{testCaseName}, #{testContent},
+             #{developerId}, #{testerId}, COALESCE(#{isTestAvailable}, TRUE), COALESCE(#{testStatus}, 'READY'), #{remark},
+             #{createdId}, NOW())
+    </insert>
+
+    <update id="update" parameterType="com.hktms.tsys.domain.TestCaseDTO">
+        UPDATE TB_HKTMS_TEST_CASE SET
+            business_unit       = #{businessUnit},
+            major_category      = #{majorCategory},
+            middle_category     = #{middleCategory},
+            minor_category      = #{minorCategory},
+            test_case_name      = #{testCaseName},
+            test_content        = #{testContent},
+            developer_id        = #{developerId},
+            tester_id           = #{testerId},
+            is_test_available   = #{isTestAvailable},
+            remark              = #{remark},
+            updated_id          = #{updatedId},
+            updated_at          = NOW()
+        WHERE test_case_id = #{testCaseId}
+    </update>
+
+    <update id="updateStatus" parameterType="com.hktms.tsys.domain.TestCaseDTO">
+        UPDATE TB_HKTMS_TEST_CASE SET
+            test_status             = #{testStatus},
+            test_result             = #{testResult},
+            completed_date          = <if test="testStatus == 'SUCCESS'">NOW()</if><if test="testStatus != 'SUCCESS'">#{completedDate}</if>,
+            is_retest_requested     = #{isRetestRequested},
+            updated_id              = #{updatedId},
+            updated_at              = NOW()
+        WHERE test_case_id = #{testCaseId}
+    </update>
+
+    <update id="softDelete" parameterType="com.hktms.tsys.domain.TestCaseDTO">
+        UPDATE TB_HKTMS_TEST_CASE SET
+            deleted_id = #{deletedId},
+            deleted_at = NOW()
+        WHERE test_case_id = #{testCaseId}
+    </update>
+
+    <insert id="bulkInsert" parameterType="list">
+        INSERT INTO TB_HKTMS_TEST_CASE
+            (business_unit, major_category, middle_category, minor_category,
+             test_case_name, test_content,
+             developer_id, tester_id, is_test_available, test_status, remark, created_id, created_at)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.businessUnit}, #{item.majorCategory}, #{item.middleCategory}, #{item.minorCategory},
+             #{item.testCaseName}, #{item.testContent},
+             #{item.developerId}, #{item.testerId},
+             COALESCE(#{item.isTestAvailable}, TRUE), COALESCE(#{item.testStatus}, 'READY'),
+             #{item.remark}, #{item.createdId}, NOW())
+        </foreach>
+    </insert>
+
+</mapper>

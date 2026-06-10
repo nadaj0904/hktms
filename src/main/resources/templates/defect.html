@@ -1,0 +1,226 @@
+﻿<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf"        th:name="_csrf"        th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:name="_csrf_header" th:content="${_csrf.headerName}">
+    <title>결함 관리 - TMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css">
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web">
+    <link rel="stylesheet" th:href="@{/css/index.css}">
+    <link rel="stylesheet" th:href="@{/css/defect.css}">
+</head>
+<body>
+
+<div class="loading-overlay"><div class="loading-spinner"></div></div>
+
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="logo-area">
+            <img th:src="@{/img/customerCI.png}" alt="CI" class="logo-img">
+        </div>
+        <nav class="nav-menu">
+            <p class="nav-section-title">메뉴</p>
+            <a class="nav-item" th:href="@{/dashboard}"><i class="ph ph-squares-four nav-icon"></i><span>대시보드</span></a>
+            <a class="nav-item" th:href="@{/testcase}"><i class="ph ph-clipboard-text nav-icon"></i><span>테스트 진행 관리</span></a>
+            <a class="nav-item active" th:href="@{/defect}"><i class="ph ph-bug nav-icon"></i><span>결함 관리</span></a>
+            <a class="nav-item" th:href="@{/admin/users}"><i class="ph ph-users nav-icon"></i><span>사용자 관리</span></a>
+            <a class="nav-item" th:href="@{/admin/codes}"><i class="ph ph-tag nav-icon"></i><span>공통코드 관리</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <a class="nav-item" th:href="@{/logout}"><i class="ph ph-sign-out nav-icon"></i><span>로그아웃</span></a>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="page-title">결함 관리</div>
+                <div class="page-subtitle">결함을 등록하고 처리 상태를 관리합니다</div>
+            </div>
+            <div class="topbar-right">
+                <div class="timer-wrapper">
+                    <i class="ph ph-timer"></i>
+                    <span class="timer-display">60:00</span>
+                    <button class="btn-extend">연장</button>
+                </div>
+                <div class="user-info">
+                    <div class="avatar" id="userAvatar">-</div>
+                    <span class="user-name" id="userName">로딩중</span>
+                </div>
+                <a th:href="@{/logout}" class="btn-logout"><i class="ph ph-sign-out"></i></a>
+            </div>
+        </header>
+
+        <main class="content-area">
+            <!-- 필터 바 -->
+            <div class="filter-bar">
+                <input type="text" id="searchKeyword" class="form-control search-input" placeholder="제목, 업무명, 내용 검색">
+                <select id="searchStatus" class="form-control">
+                    <option value="">전체 상태</option>
+                    <option value="ANALYSIS">분석중</option>
+                    <option value="FIXING">조치중</option>
+                    <option value="FIX_COMPLETE">조치완료</option>
+                    <option value="RETEST">재테스트중</option>
+                    <option value="CLOSED">종료</option>
+                </select>
+                <button class="btn btn-primary" id="btnSearch"><i class="ph ph-magnifying-glass"></i> 검색</button>
+                <div style="flex:1;"></div>
+                <button class="btn btn-primary" id="btnCreate"><i class="ph ph-plus"></i> 결함 등록</button>
+            </div>
+
+            <!-- 테이블 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">결함 목록</span>
+                    <span id="totalCount" class="badge badge-analysis">0건</span>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>No.</th>
+                                    <th>업무단위 / 대분류</th>
+                                    <th>제목</th>
+                                    <th>테스트케이스</th>
+                                    <th>등록자</th>
+                                    <th>담당개발자</th>
+                                    <th>상태</th>
+                                    <th>조치내용</th>
+                                    <th>최종종료</th>
+                                    <th>등록일시</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="defectTableBody">
+                                <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">데이터를 불러오는 중...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination" id="defectPagination" style="padding:12px;"></div>
+                </div>
+            </div>
+        </main>
+        <footer class="page-footer">&copy; 2026 Test Management System. All rights reserved.</footer>
+    </div>
+</div>
+
+<!-- 등록/수정 모달 -->
+<div class="modal-overlay" id="defectFormModal">
+    <div class="modal modal-lg">
+        <div class="modal-header">
+            <span class="modal-title" id="defectFormTitle">결함 등록</span>
+            <button class="modal-close" data-close="defectFormModal"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="defectId">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">업무단위 <span style="color:var(--danger-color);">*</span></label>
+                    <select id="defectBusinessUnit" class="form-control">
+                        <option value="">선택</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">담당 개발자</label>
+                    <select id="defectDeveloperId" class="form-control">
+                        <option value="">선택</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">대분류 <span style="color:var(--danger-color);">*</span></label>
+                    <select id="defectMajorCategory" class="form-control" disabled>
+                        <option value="">업무단위를 먼저 선택하세요</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">중분류 <span style="font-size:11px;color:var(--text-muted);">(선택)</span></label>
+                    <select id="defectMiddleCategory" class="form-control" disabled>
+                        <option value="">대분류를 먼저 선택하세요</option>
+                    </select>
+                </div>
+                <div class="form-group span-2">
+                    <label class="form-label">제목 <span style="color:var(--danger-color);">*</span></label>
+                    <input type="text" id="defectTitle" class="form-control" placeholder="결함 제목 입력">
+                </div>
+                <div class="form-group span-2">
+                    <label class="form-label">상세내용 <span style="color:var(--danger-color);">*</span></label>
+                    <textarea id="defectContent" class="form-control" rows="4" placeholder="결함 상세 내용을 입력하세요"></textarea>
+                </div>
+                <div class="form-group span-2">
+                    <label class="form-label">조치내용</label>
+                    <textarea id="defectFixContent" class="form-control" rows="3" placeholder="조치 내용을 입력하세요"></textarea>
+                </div>
+            </div>
+            <!-- 첨부파일 영역 (등록 완료 후 표시) -->
+            <div id="attachmentSection" style="display:none; margin-top:16px;">
+                <label class="form-label">첨부파일</label>
+                <div id="attachmentList" class="attachment-list"></div>
+                <div style="margin-top:8px;">
+                    <input type="file" id="attachmentInput" style="display:none;" multiple accept=".jpg,.jpeg,.png,.pdf,.xlsx,.docx">
+                    <button class="btn btn-secondary btn-sm" id="btnAddAttachment"><i class="ph ph-paperclip"></i> 파일 추가</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" data-close="defectFormModal">취소</button>
+            <button class="btn btn-primary" id="btnDefectSave"><i class="ph ph-floppy-disk"></i> 저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 상태 변경 모달 -->
+<div class="modal-overlay" id="defectStatusModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">결함 상태 변경</span>
+            <button class="modal-close" data-close="defectStatusModal"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="statusDefectId">
+            <!-- 상태 스텝 표시 -->
+            <div class="status-steps">
+                <div class="step-item" data-step="ANALYSIS">분석중</div>
+                <div class="step-item" data-step="FIXING">조치중</div>
+                <div class="step-item" data-step="FIX_COMPLETE">조치완료</div>
+                <div class="step-item" data-step="RETEST">재테스트중</div>
+                <div class="step-item" data-step="CLOSED">종료</div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">결함 상태 <span style="color:var(--danger-color);">*</span></label>
+                    <select id="defectStatusValue" class="form-control">
+                        <option value="ANALYSIS">분석중</option>
+                        <option value="FIXING">조치중</option>
+                        <option value="FIX_COMPLETE">조치완료</option>
+                        <option value="RETEST">재테스트중</option>
+                        <option value="CLOSED">종료</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">최종 종료</label>
+                    <select id="defectFinalClosed" class="form-control">
+                        <option value="false">아니오</option>
+                        <option value="true">예</option>
+                    </select>
+                </div>
+                <div class="form-group span-2">
+                    <label class="form-label">조치내용</label>
+                    <textarea id="defectStatusFixContent" class="form-control" rows="3" placeholder="조치 내용을 입력하세요"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" data-close="defectStatusModal">취소</button>
+            <button class="btn btn-primary" id="btnDefectStatusSave"><i class="ph ph-check"></i> 저장</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/defect.js}"></script>
+</body>
+</html>

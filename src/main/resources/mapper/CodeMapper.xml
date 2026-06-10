@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hktms.tsys.repository.CodeMapper">
+
+    <!-- 기존: 서비스용 (활성만) -->
+    <select id="findByGroupCode" parameterType="string" resultType="com.hktms.tsys.domain.CodeDTO">
+        SELECT c.code_id, c.code_group_id, g.group_code, c.code_value, c.code_name, c.sort_order, c.is_active
+        FROM TB_HKTMS_CODE c
+        JOIN TB_HKTMS_CODE_GROUP g ON g.code_group_id = c.code_group_id
+        WHERE g.group_code = #{groupCode}
+          AND c.is_active = TRUE
+          AND c.deleted_at IS NULL
+        ORDER BY c.sort_order
+    </select>
+
+    <select id="findAllGroups" resultType="com.hktms.tsys.domain.CodeGroupDTO">
+        SELECT code_group_id, group_code, group_name, description, sort_order, is_active
+        FROM TB_HKTMS_CODE_GROUP
+        WHERE is_active = TRUE
+          AND deleted_at IS NULL
+        ORDER BY sort_order
+    </select>
+
+    <select id="findByGroupAndValue" resultType="com.hktms.tsys.domain.CodeDTO">
+        SELECT c.code_id, c.code_group_id, g.group_code, c.code_value, c.code_name, c.sort_order, c.is_active
+        FROM TB_HKTMS_CODE c
+        JOIN TB_HKTMS_CODE_GROUP g ON g.code_group_id = c.code_group_id
+        WHERE g.group_code = #{groupCode}
+          AND c.code_value = #{codeValue}
+          AND c.deleted_at IS NULL
+    </select>
+
+    <!-- 관리용: 비활성 포함 전체 -->
+    <select id="findAllGroupsForAdmin" resultType="com.hktms.tsys.domain.CodeGroupDTO">
+        SELECT code_group_id, group_code, group_name, description, sort_order, is_active, created_at,
+               business_unit, category_level, parent_group_code, parent_code_value
+        FROM TB_HKTMS_CODE_GROUP
+        WHERE deleted_at IS NULL
+        ORDER BY sort_order, code_group_id
+    </select>
+
+    <select id="findGroupById" resultType="com.hktms.tsys.domain.CodeGroupDTO">
+        SELECT code_group_id, group_code, group_name, description, sort_order, is_active, created_at,
+               business_unit, category_level, parent_group_code, parent_code_value
+        FROM TB_HKTMS_CODE_GROUP
+        WHERE code_group_id = #{codeGroupId}
+          AND deleted_at IS NULL
+    </select>
+
+    <insert id="insertGroup" parameterType="com.hktms.tsys.domain.CodeGroupDTO"
+            useGeneratedKeys="true" keyProperty="codeGroupId">
+        INSERT INTO TB_HKTMS_CODE_GROUP
+            (group_code, group_name, description, sort_order, is_active,
+             business_unit, category_level, parent_group_code, parent_code_value, created_id, created_at)
+        VALUES
+            (#{groupCode}, #{groupName}, #{description}, #{sortOrder}, #{isActive},
+             #{businessUnit}, #{categoryLevel}, #{parentGroupCode}, #{parentCodeValue}, #{createdId}, NOW())
+    </insert>
+
+    <update id="updateGroup" parameterType="com.hktms.tsys.domain.CodeGroupDTO">
+        UPDATE TB_HKTMS_CODE_GROUP
+        SET group_code        = #{groupCode},
+            group_name        = #{groupName},
+            description       = #{description},
+            sort_order        = #{sortOrder},
+            is_active         = #{isActive},
+            business_unit     = #{businessUnit},
+            category_level    = #{categoryLevel},
+            parent_group_code = #{parentGroupCode},
+            parent_code_value = #{parentCodeValue},
+            updated_id        = #{updatedId},
+            updated_at        = NOW()
+        WHERE code_group_id = #{codeGroupId}
+    </update>
+
+    <update id="softDeleteGroup" parameterType="com.hktms.tsys.domain.CodeGroupDTO">
+        UPDATE TB_HKTMS_CODE_GROUP
+        SET deleted_id = #{deletedId},
+            deleted_at = NOW()
+        WHERE code_group_id = #{codeGroupId}
+    </update>
+
+    <!-- 업무단위+분류수준+상위코드값으로 코드 조회 (결함등록 카스케이드용) -->
+    <select id="findCodesByBusinessUnitAndLevel" resultType="com.hktms.tsys.domain.CodeDTO">
+        SELECT c.code_id, c.code_group_id, g.group_code, c.code_value, c.code_name, c.sort_order, c.is_active
+        FROM TB_HKTMS_CODE c
+        JOIN TB_HKTMS_CODE_GROUP g ON g.code_group_id = c.code_group_id
+        WHERE g.business_unit = #{businessUnit}
+          AND g.category_level = #{categoryLevel}
+          <if test="parentCodeValue != null and parentCodeValue != ''">
+              AND g.parent_code_value = #{parentCodeValue}
+          </if>
+          AND c.is_active = TRUE
+          AND g.is_active = TRUE
+          AND c.deleted_at IS NULL
+          AND g.deleted_at IS NULL
+        ORDER BY c.sort_order, c.code_id
+    </select>
+
+    <!-- 코드 관리 -->
+    <select id="findCodesByGroupId" resultType="com.hktms.tsys.domain.CodeDTO">
+        SELECT code_id, code_group_id, code_value, code_name, sort_order, is_active
+        FROM TB_HKTMS_CODE
+        WHERE code_group_id = #{codeGroupId}
+          AND deleted_at IS NULL
+        ORDER BY sort_order, code_id
+    </select>
+
+    <select id="findCodeById" resultType="com.hktms.tsys.domain.CodeDTO">
+        SELECT c.code_id, c.code_group_id, g.group_code, c.code_value, c.code_name, c.sort_order, c.is_active
+        FROM TB_HKTMS_CODE c
+        JOIN TB_HKTMS_CODE_GROUP g ON g.code_group_id = c.code_group_id
+        WHERE c.code_id = #{codeId}
+          AND c.deleted_at IS NULL
+    </select>
+
+    <insert id="insertCode" parameterType="com.hktms.tsys.domain.CodeDTO"
+            useGeneratedKeys="true" keyProperty="codeId">
+        INSERT INTO TB_HKTMS_CODE
+            (code_group_id, code_value, code_name, sort_order, is_active, created_id, created_at)
+        VALUES
+            (#{codeGroupId}, #{codeValue}, #{codeName}, #{sortOrder}, #{isActive}, #{createdId}, NOW())
+    </insert>
+
+    <update id="updateCode" parameterType="com.hktms.tsys.domain.CodeDTO">
+        UPDATE TB_HKTMS_CODE
+        SET code_value  = #{codeValue},
+            code_name   = #{codeName},
+            sort_order  = #{sortOrder},
+            is_active   = #{isActive},
+            updated_id  = #{updatedId},
+            updated_at  = NOW()
+        WHERE code_id = #{codeId}
+    </update>
+
+    <update id="softDeleteCode" parameterType="com.hktms.tsys.domain.CodeDTO">
+        UPDATE TB_HKTMS_CODE
+        SET deleted_id = #{deletedId},
+            deleted_at = NOW()
+        WHERE code_id = #{codeId}
+    </update>
+
+</mapper>

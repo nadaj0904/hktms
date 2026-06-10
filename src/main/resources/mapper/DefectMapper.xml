@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hktms.tsys.repository.DefectMapper">
+
+    <sql id="baseColumns">
+        d.defect_id, d.test_case_id, tc.test_case_name,
+        d.business_name, d.business_unit, d.major_category, d.middle_category,
+        d.title, d.content,
+        d.registrant_id, ru.user_name AS registrant_name,
+        d.developer_id,  dv.user_name AS developer_name,
+        d.defect_status, dc.code_name AS defect_status_name,
+        d.fix_content, d.is_final_closed,
+        d.created_id, d.created_at, d.updated_id, d.updated_at,
+        bu_c.code_name  AS business_unit_name,
+        maj_c.code_name AS major_category_name,
+        mid_c.code_name AS middle_category_name
+    </sql>
+
+    <sql id="categoryJoins">
+        LEFT JOIN TB_HKTMS_CODE bu_c ON bu_c.code_value = d.business_unit
+            AND bu_c.deleted_at IS NULL
+            AND bu_c.code_group_id = (SELECT code_group_id FROM TB_HKTMS_CODE_GROUP WHERE group_code = 'BUSINESS_CATEGORY' AND deleted_at IS NULL LIMIT 1)
+        LEFT JOIN TB_HKTMS_CODE maj_c ON maj_c.code_value = d.major_category
+            AND maj_c.deleted_at IS NULL
+            AND maj_c.code_group_id = (SELECT code_group_id FROM TB_HKTMS_CODE_GROUP WHERE group_code = d.business_unit || '_MAJOR' AND deleted_at IS NULL LIMIT 1)
+        LEFT JOIN TB_HKTMS_CODE mid_c ON mid_c.code_value = d.middle_category
+            AND mid_c.deleted_at IS NULL
+            AND mid_c.code_group_id = (SELECT g.code_group_id FROM TB_HKTMS_CODE_GROUP g WHERE g.business_unit = d.business_unit AND g.category_level = 'MIDDLE' AND g.parent_code_value = d.major_category AND g.deleted_at IS NULL LIMIT 1)
+    </sql>
+
+    <sql id="searchCondition">
+        <where>
+            d.deleted_at IS NULL
+            <if test="keyword != null and keyword != ''">
+                AND (d.title         ILIKE '%' || #{keyword} || '%'
+                  OR d.business_name ILIKE '%' || #{keyword} || '%'
+                  OR d.business_unit ILIKE '%' || #{keyword} || '%'
+                  OR d.content       ILIKE '%' || #{keyword} || '%')
+            </if>
+            <if test="searchStatus != null and searchStatus != ''">
+                AND d.defect_status = #{searchStatus}
+            </if>
+        </where>
+    </sql>
+
+    <select id="findAll" parameterType="com.hktms.tsys.domain.DefectDTO" resultType="com.hktms.tsys.domain.DefectDTO">
+        SELECT <include refid="baseColumns"/>
+        FROM TB_HKTMS_DEFECT d
+        LEFT JOIN TB_HKTMS_TEST_CASE tc ON tc.test_case_id = d.test_case_id
+        LEFT JOIN TB_HKTMS_USER ru ON ru.user_id = d.registrant_id
+        LEFT JOIN TB_HKTMS_USER dv ON dv.user_id = d.developer_id
+        LEFT JOIN TB_HKTMS_CODE dc ON dc.code_value = d.defect_status
+            AND dc.code_group_id = (SELECT code_group_id FROM TB_HKTMS_CODE_GROUP WHERE group_code = 'DEFECT_STATUS' AND deleted_at IS NULL LIMIT 1)
+        <include refid="categoryJoins"/>
+        <include refid="searchCondition"/>
+        ORDER BY d.defect_id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" parameterType="com.hktms.tsys.domain.DefectDTO" resultType="int">
+        SELECT COUNT(*) FROM TB_HKTMS_DEFECT d
+        <include refid="searchCondition"/>
+    </select>
+
+    <select id="findById" parameterType="long" resultType="com.hktms.tsys.domain.DefectDTO">
+        SELECT <include refid="baseColumns"/>
+        FROM TB_HKTMS_DEFECT d
+        LEFT JOIN TB_HKTMS_TEST_CASE tc ON tc.test_case_id = d.test_case_id
+        LEFT JOIN TB_HKTMS_USER ru ON ru.user_id = d.registrant_id
+        LEFT JOIN TB_HKTMS_USER dv ON dv.user_id = d.developer_id
+        LEFT JOIN TB_HKTMS_CODE dc ON dc.code_value = d.defect_status
+            AND dc.code_group_id = (SELECT code_group_id FROM TB_HKTMS_CODE_GROUP WHERE group_code = 'DEFECT_STATUS' AND deleted_at IS NULL LIMIT 1)
+        <include refid="categoryJoins"/>
+        WHERE d.defect_id = #{defectId}
+          AND d.deleted_at IS NULL
+    </select>
+
+    <insert id="insert" parameterType="com.hktms.tsys.domain.DefectDTO">
+        INSERT INTO TB_HKTMS_DEFECT
+            (test_case_id, business_unit, major_category, middle_category,
+             title, content, registrant_id, developer_id,
+             defect_status, fix_content, is_final_closed, created_id, created_at)
+        VALUES
+            (#{testCaseId}, #{businessUnit}, #{majorCategory}, #{middleCategory},
+             #{title}, #{content}, #{registrantId}, #{developerId},
+             COALESCE(#{defectStatus}, 'ANALYSIS'), #{fixContent}, FALSE, #{createdId}, NOW())
+    </insert>
+
+    <update id="update" parameterType="com.hktms.tsys.domain.DefectDTO">
+        UPDATE TB_HKTMS_DEFECT SET
+            business_unit   = #{businessUnit},
+            major_category  = #{majorCategory},
+            middle_category = #{middleCategory},
+            title           = #{title},
+            content         = #{content},
+            developer_id    = #{developerId},
+            fix_content     = #{fixContent},
+            updated_id      = #{updatedId},
+            updated_at      = NOW()
+        WHERE defect_id = #{defectId}
+    </update>
+
+    <update id="updateStatus" parameterType="com.hktms.tsys.domain.DefectDTO">
+        UPDATE TB_HKTMS_DEFECT SET
+            defect_status   = #{defectStatus},
+            fix_content     = #{fixContent},
+            is_final_closed = #{isFinalClosed},
+            updated_id      = #{updatedId},
+            updated_at      = NOW()
+        WHERE defect_id = #{defectId}
+    </update>
+
+    <update id="softDelete" parameterType="com.hktms.tsys.domain.DefectDTO">
+        UPDATE TB_HKTMS_DEFECT SET
+            deleted_id = #{deletedId},
+            deleted_at = NOW()
+        WHERE defect_id = #{defectId}
+    </update>
+
+</mapper>

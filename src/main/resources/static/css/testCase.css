@@ -1,0 +1,56 @@
+/* 테스트케이스 관리 전용 스타일 */
+
+.tc-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 0;
+}
+
+/* 테스트 가능 여부 토글 */
+.available-badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+}
+.available-y { background: #dcfce7; color: #15803d; }
+.available-n { background: #fee2e2; color: #b91c1c; }
+
+/* 재테스트 요청 뱃지 */
+.retest-badge {
+    background: #fef9c3;
+    color: #a16207;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+}
+
+/* 엑셀 프리뷰 테이블 */
+.preview-table-wrapper { max-height: 360px; overflow-y: auto; }
+.preview-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.preview-table thead th {
+    background: #f8fafc;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+    position: sticky; top: 0;
+}
+.preview-table tbody td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; }
+.preview-table tbody tr.has-error td { background: #fef2f2; }
+.preview-table .error-cell { color: var(--danger-color); font-size: 11px; }
+
+/* 인라인 상태 변경 */
+.status-select-inline {
+    padding: 4px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 12px;
+    background: #fff;
+}
+
+/* 결과 텍스트 셀 */
+.result-cell { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

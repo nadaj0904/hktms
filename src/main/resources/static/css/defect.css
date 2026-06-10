@@ -1,0 +1,45 @@
+/* 결함 관리 전용 스타일 */
+
+/* 첨부파일 목록 */
+.attachment-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.attachment-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg-color);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    font-size: 13px;
+}
+.attachment-item-left { display: flex; align-items: center; gap: 8px; }
+.attachment-icon { font-size: 18px; color: var(--primary-color); }
+.attachment-name { font-weight: 500; color: var(--text-main); }
+.attachment-size { font-size: 11px; color: var(--text-muted); }
+
+/* 상태 진행 스텝바 */
+.status-steps {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 12px 0;
+}
+.step-item {
+    flex: 1;
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    border-bottom: 3px solid var(--border-color);
+    color: var(--text-muted);
+    transition: border-color 0.2s, color 0.2s;
+}
+.step-item.active { border-bottom-color: var(--primary-color); color: var(--primary-color); }
+.step-item.done   { border-bottom-color: var(--success-color); color: var(--success-color); }
+
+/* 조치내용 셀 */
+.fix-content-cell { max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; color: var(--text-muted); }
+
+/* 최종종료 배지 */
+.final-closed-badge { background: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.final-closed-badge.closed { background: #dcfce7; color: #15803d; }
