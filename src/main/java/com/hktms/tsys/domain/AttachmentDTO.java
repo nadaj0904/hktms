@@ -11,7 +11,10 @@ public class AttachmentDTO {
     private String filePath;
     private Long fileSize;
     private String fileType;
+    private Long createdId;
     private LocalDateTime createdAt;
+    private Long deletedId;
+    private LocalDateTime deletedAt;
 
     public Long getAttachmentId() { return attachmentId; }
     public void setAttachmentId(Long attachmentId) { this.attachmentId = attachmentId; }
@@ -29,6 +32,12 @@ public class AttachmentDTO {
     public void setFileSize(Long fileSize) { this.fileSize = fileSize; }
     public String getFileType() { return fileType; }
     public void setFileType(String fileType) { this.fileType = fileType; }
+    public Long getCreatedId() { return createdId; }
+    public void setCreatedId(Long createdId) { this.createdId = createdId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Long getDeletedId() { return deletedId; }
+    public void setDeletedId(Long deletedId) { this.deletedId = deletedId; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
 }

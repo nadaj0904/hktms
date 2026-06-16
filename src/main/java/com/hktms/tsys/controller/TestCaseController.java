@@ -39,13 +39,17 @@ public class TestCaseController {
     public ApiResponse<Map<String, Object>> getList(
             @RequestParam(defaultValue = "") String keyword,
             @RequestParam(defaultValue = "") String searchStatus,
-            @RequestParam(defaultValue = "") String searchCategory,
+            @RequestParam(defaultValue = "") String businessUnit,
+            @RequestParam(defaultValue = "") String majorCategory,
+            @RequestParam(defaultValue = "") String middleCategory,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         TestCaseDTO param = new TestCaseDTO();
         param.setKeyword(keyword);
         param.setSearchStatus(searchStatus);
-        param.setSearchCategory(searchCategory);
+        param.setBusinessUnit(businessUnit);
+        param.setMajorCategory(majorCategory);
+        param.setMiddleCategory(middleCategory);
         param.setPage(page);
         param.setSize(size);
         return ApiResponse.success("조회 성공", testCaseService.getTestCaseList(param));

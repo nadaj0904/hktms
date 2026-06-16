@@ -1,7 +1,9 @@
-var currentPage = 1;
-var currentSize = 20;
-var previewData  = [];
-var userList     = [];
+var currentPage      = 1;
+var currentSize      = 20;
+var previewData      = [];
+var userList         = [];
+var currentTcDetailId = null;
+var currentTcDetail   = null;
 
 $(function () {
     loadCodes();
@@ -31,9 +33,15 @@ function loadCodes() {
         });
 
         const biz = res.data.businessCategories || [];
+        // 등록 모달용 드롭다운
         const $biz = $('#tcBusinessUnit');
         biz.forEach(function (c) {
             $biz.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
+        });
+        // 검색 필터용 드롭다운
+        const $filterBiz = $('#filterBusinessUnit');
+        biz.forEach(function (c) {
+            $filterBiz.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
         });
     }, function(){});
 }
@@ -100,9 +108,11 @@ function resetTcCascade(fromLevel) {
 function loadList(page) {
     currentPage = page || 1;
     const param = {
-        keyword: $('#searchKeyword').val(),
-        searchStatus: $('#searchStatus').val(),
-        searchCategory: $('#searchCategory').val(),
+        keyword:        $('#searchKeyword').val(),
+        searchStatus:   $('#searchStatus').val(),
+        businessUnit:   $('#filterBusinessUnit').val(),
+        majorCategory:  $('#filterMajorCategory').val(),
+        middleCategory: $('#filterMiddleCategory').val(),
         page: currentPage,
         size: currentSize
     };
@@ -131,7 +141,7 @@ function renderTable(list) {
             : '<span class="available-badge available-n">불가</span>';
         const retestBadge = item.isRetestRequested
             ? '<span class="retest-badge">재요청</span>' : '-';
-        const tr = `<tr>
+        const tr = `<tr class="clickable-row" data-id="${item.testCaseId}">
             <td>${no}</td>
             <td>${escHtml(item.businessUnitName || item.businessUnit || '-')}</td>
             <td>${escHtml(item.majorCategoryName || item.majorCategory||'-')}</td>
@@ -144,11 +154,11 @@ function renderTable(list) {
             <td>${testStatusBadge(item.testStatus)}</td>
             <td>${formatDate(item.completedDate)}</td>
             <td>${retestBadge}</td>
-            <td>
-                <div style="display:flex;gap:4px;">
-                    <button class="btn btn-secondary btn-sm btn-icon btn-status" data-id="${item.testCaseId}" title="상태변경"><i class="ph ph-arrows-clockwise"></i></button>
-                    <button class="btn btn-secondary btn-sm btn-icon btn-edit" data-id="${item.testCaseId}" title="수정"><i class="ph ph-pencil-simple"></i></button>
-                    <button class="btn btn-danger btn-sm btn-icon btn-delete" data-id="${item.testCaseId}" title="삭제"><i class="ph ph-trash"></i></button>
+            <td style="white-space:nowrap;">
+                <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
+                    <button class="btn btn-primary   btn-sm btn-status" data-id="${item.testCaseId}"><i class="ph ph-arrows-clockwise"></i> 상태변경</button>
+                    <button class="btn btn-secondary btn-sm btn-edit"   data-id="${item.testCaseId}"><i class="ph ph-pencil-simple"></i> 수정</button>
+                    <button class="btn btn-danger    btn-sm btn-delete" data-id="${item.testCaseId}"><i class="ph ph-trash"></i> 삭제</button>
                 </div>
             </td>
         </tr>`;
@@ -163,6 +173,26 @@ function bindEvents() {
     // 검색
     $('#btnSearch').on('click', function () { loadList(1); });
     $('#searchKeyword').on('keypress', function (e) { if (e.key === 'Enter') loadList(1); });
+
+    // 필터 업무단위 → 대분류 카스케이드
+    $('#filterBusinessUnit').on('change', function () {
+        var bu = $(this).val();
+        resetFilterCascade(1);
+        if (bu) loadFilterMajorCategories(bu);
+        loadList(1);
+    });
+    // 필터 대분류 → 중분류 카스케이드
+    $('#filterMajorCategory').on('change', function () {
+        var bu  = $('#filterBusinessUnit').val();
+        var maj = $(this).val();
+        resetFilterCascade(2);
+        if (bu && maj) loadFilterMiddleCategories(bu, maj);
+        loadList(1);
+    });
+    // 필터 중분류 변경
+    $('#filterMiddleCategory').on('change', function () { loadList(1); });
+    // 상태 필터 변경
+    $('#searchStatus').on('change', function () { loadList(1); });
 
     // 신규 등록 버튼
     $('#btnCreate').on('click', function () { openCreateModal(); });
@@ -198,6 +228,11 @@ function bindEvents() {
     });
     // 모든 모달은 취소 버튼 클릭시에만 닫힘 (배경 클릭 닫기 비활성)
 
+    // 행 클릭 → 상세 모달
+    $('#tcTableBody').on('click', '.clickable-row', function () {
+        openTcDetailModal($(this).data('id'));
+    });
+
     // 수정/삭제/상태변경 (이벤트 위임)
     $('#tcTableBody').on('click', '.btn-edit', function () {
         openEditModal($(this).data('id'));
@@ -208,6 +243,16 @@ function bindEvents() {
     $('#tcTableBody').on('click', '.btn-status', function () {
         openStatusModal($(this).data('id'));
     });
+
+    // 상세 모달 – 수정 버튼
+    $('#btnTcDetailEdit').on('click', function () {
+        closeModal('tcDetailModal');
+        openEditModal(currentTcDetailId);
+    });
+    // 상세 모달 – 상태 저장
+    $('#btnTcDetailStatusSave').on('click', saveTcDetailStatus);
+    // 상세 모달 – 결함관리 등록
+    $('#btnTcDetailToDefect').on('click', goToDefectCreate);
 
     // 엑셀 업로드
     $('#btnExcelUpload').on('click', function () { $('#excelFileInput').val('').click(); });
@@ -360,12 +405,11 @@ function renderPreview(rows) {
         if (hasErr) errorCount++;
         const tr = `<tr class="${hasErr ? 'has-error' : ''}">
             <td>${r.rowNum}</td>
-            <td>${escHtml(r.majorCategory)}</td>
-            <td>${escHtml(r.middleCategory)}</td>
-            <td>${escHtml(r.minorCategory)}</td>
+            <td>${escHtml(r.businessUnitName)}</td>
+            <td>${escHtml(r.majorCategoryName)}</td>
+            <td>${escHtml(r.middleCategoryName)}</td>
+            <td>${escHtml(r.minorCategoryName)}</td>
             <td>${escHtml(r.testCaseName)}</td>
-            <td>${escHtml(r.testContent)}</td>
-            <td>${escHtml(r.remark)}</td>
             <td class="error-cell">${escHtml(r.error)}</td>
         </tr>`;
         $body.append(tr);
@@ -379,12 +423,15 @@ function importExcel() {
     const validRows = previewData.filter(function (r) { return !r.error || r.error === ''; });
     const list = validRows.map(function (r) {
         return {
-            majorCategory:  r.majorCategory || null,
-            middleCategory: r.middleCategory || null,
-            minorCategory:  r.minorCategory || null,
-            testCaseName:   r.testCaseName,
-            testContent:    r.testContent || null,
-            remark:         r.remark || null
+            businessUnit:    r.businessUnit   || null,
+            majorCategory:   r.majorCategory  || null,
+            middleCategory:  r.middleCategory || null,
+            minorCategory:   r.minorCategory  || null,
+            testCaseName:    r.testCaseName,
+            developerId:     null,
+            testerId:        null,
+            isTestAvailable: true,
+            testStatus:      'READY'
         };
     });
     sendAjax('/api/v1/testcase/excel/import', 'POST', list, function (res) {
@@ -392,6 +439,140 @@ function importExcel() {
         closeModal('excelPreviewModal');
         loadList(1);
     });
+}
+
+/* =========================================
+   테스트케이스 상세 모달
+   ========================================= */
+function openTcDetailModal(tcId) {
+    sendAjax('/api/v1/testcase/' + tcId, 'GET', null, function (res) {
+        var d = res.data;
+        currentTcDetailId = d.testCaseId;
+        currentTcDetail   = d;
+
+        // 헤더
+        $('#tcDetailTitle').text(escHtml(d.testCaseName));
+        $('#tcDetailNo').text('#' + d.testCaseId);
+
+        // 기본 정보
+        $('#tcDetailBusinessUnit').text(d.businessUnitName  || d.businessUnit  || '-');
+        $('#tcDetailMajorCategory').text(d.majorCategoryName || d.majorCategory || '-');
+        $('#tcDetailMiddleCategory').text(d.middleCategoryName || d.middleCategory || '-');
+        $('#tcDetailMinorCategory').text(d.minorCategoryName || d.minorCategory || '-');
+        $('#tcDetailStatusBadge').html(testStatusBadge(d.testStatus));
+        $('#tcDetailDeveloper').text(d.developerName || '-');
+        $('#tcDetailTester').text(d.testerName || '-');
+        $('#tcDetailAvailable').html(
+            d.isTestAvailable
+                ? '<span class="available-badge available-y">가능</span>'
+                : '<span class="available-badge available-n">불가</span>'
+        );
+        $('#tcDetailCompletedDate').text(formatDate(d.completedDate) || '-');
+        $('#tcDetailRetest').html(
+            d.isRetestRequested
+                ? '<span class="retest-badge">재요청</span>'
+                : '-'
+        );
+        $('#tcDetailCreatedAt').text(formatDateTime(d.createdAt) || '-');
+
+        // 테스트 내용
+        $('#tcDetailContent').html(d.testContent ? escHtml(d.testContent).replace(/\n/g, '<br>') : '-');
+
+        // 테스트 결과
+        if (d.testResult) {
+            $('#tcDetailResult').html(escHtml(d.testResult).replace(/\n/g, '<br>'));
+            $('#tcDetailResultBlock').show();
+        } else {
+            $('#tcDetailResult').text('-');
+            $('#tcDetailResultBlock').hide();
+        }
+
+        // 상태 변경 폼 초기값
+        $('#tcDetailStatusValue').val(d.testStatus || 'READY');
+        $('#tcDetailRetestValue').val(d.isRetestRequested ? 'true' : 'false');
+        $('#tcDetailResultInput').val(d.testResult || '');
+        updateTcDetailStatusSteps(d.testStatus || 'READY');
+
+        openModal('tcDetailModal');
+    });
+}
+
+function saveTcDetailStatus() {
+    var data = {
+        testStatus:        $('#tcDetailStatusValue').val(),
+        isRetestRequested: $('#tcDetailRetestValue').val() === 'true',
+        testResult:        $('#tcDetailResultInput').val().trim() || null
+    };
+    sendAjax('/api/v1/testcase/' + currentTcDetailId + '/status', 'PUT', data, function () {
+        openTcDetailModal(currentTcDetailId);
+        loadList(currentPage);
+    });
+}
+
+function goToDefectCreate() {
+    if (!currentTcDetail) return;
+    sessionStorage.setItem('defect_prefill', JSON.stringify({
+        businessUnit:  currentTcDetail.businessUnit  || '',
+        majorCategory: currentTcDetail.majorCategory || '',
+        middleCategory:currentTcDetail.middleCategory|| '',
+        developerId:   currentTcDetail.testerId      || ''
+    }));
+    location.href = '/defect';
+}
+
+function updateTcDetailStatusSteps(currentStatus) {
+    var order = ['READY', 'IN_PROGRESS', 'SUCCESS', 'FAIL', 'HOLD'];
+    var currentIdx = order.indexOf(currentStatus);
+    $('#tcDetailStatusSteps .step-item').each(function (i) {
+        $(this).removeClass('active done fail');
+        var step = $(this).data('step');
+        if (step === currentStatus) {
+            $(this).addClass(currentStatus === 'FAIL' ? 'fail' : 'active');
+        } else if (i < currentIdx && currentStatus !== 'FAIL' && currentStatus !== 'HOLD') {
+            $(this).addClass('done');
+        }
+    });
+}
+
+/* =========================================
+   필터 카스케이드 드롭다운
+   ========================================= */
+function loadFilterMajorCategories(businessUnit) {
+    var url = '/api/v1/testcase/categories?businessUnit=' + encodeURIComponent(businessUnit) + '&level=MAJOR';
+    sendAjax(url, 'GET', null, function (res) {
+        var $sel = $('#filterMajorCategory').empty()
+            .append('<option value="">대분류 전체</option>')
+            .prop('disabled', false);
+        (res.data || []).forEach(function (c) {
+            $sel.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
+        });
+    }, function(){});
+}
+
+function loadFilterMiddleCategories(businessUnit, majorCodeValue) {
+    var url = '/api/v1/testcase/categories?businessUnit=' + encodeURIComponent(businessUnit)
+            + '&level=MIDDLE&parentCodeValue=' + encodeURIComponent(majorCodeValue);
+    sendAjax(url, 'GET', null, function (res) {
+        var $sel = $('#filterMiddleCategory').empty()
+            .append('<option value="">중분류 전체</option>')
+            .prop('disabled', false);
+        (res.data || []).forEach(function (c) {
+            $sel.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
+        });
+    }, function(){});
+}
+
+function resetFilterCascade(fromLevel) {
+    if (fromLevel <= 1) {
+        $('#filterMajorCategory').empty()
+            .append('<option value="">대분류 전체</option>')
+            .prop('disabled', true);
+    }
+    if (fromLevel <= 2) {
+        $('#filterMiddleCategory').empty()
+            .append('<option value="">중분류 전체</option>')
+            .prop('disabled', true);
+    }
 }
 
 /* =========================================

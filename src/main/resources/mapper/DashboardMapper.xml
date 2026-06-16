@@ -17,15 +17,26 @@
 
     <select id="countByCategoryAndStatus" resultType="com.hktms.tsys.domain.DashboardDTO$CategoryProgressDTO">
         SELECT
-            major_category,
-            COUNT(*) AS total_count,
-            COUNT(*) FILTER (WHERE test_status = 'SUCCESS') AS success_count,
-            COUNT(*) FILTER (WHERE test_status = 'FAIL')    AS fail_count
-        FROM TB_HKTMS_TEST_CASE
-        WHERE deleted_at IS NULL
-          AND major_category IS NOT NULL
-        GROUP BY major_category
-        ORDER BY major_category
+            tc.business_unit                                  AS major_category,
+            bc.code_name                                      AS business_unit_name,
+            COUNT(*)                                          AS total_count,
+            COUNT(*) FILTER (WHERE tc.test_status = 'SUCCESS') AS success_count,
+            COUNT(*) FILTER (WHERE tc.test_status = 'FAIL')    AS fail_count
+        FROM TB_HKTMS_TEST_CASE tc
+        LEFT JOIN TB_HKTMS_CODE bc
+               ON bc.code_value = tc.business_unit
+              AND bc.deleted_at IS NULL
+              AND bc.code_group_id = (
+                      SELECT code_group_id
+                      FROM TB_HKTMS_CODE_GROUP
+                      WHERE group_code = 'BUSINESS_CATEGORY'
+                        AND deleted_at IS NULL
+                      LIMIT 1
+                  )
+        WHERE tc.deleted_at IS NULL
+          AND tc.business_unit IS NOT NULL
+        GROUP BY tc.business_unit, bc.code_name
+        ORDER BY bc.code_name NULLS LAST
     </select>
 
     <select id="countByStatus" parameterType="string" resultType="com.hktms.tsys.domain.DashboardDTO$CategoryProgressDTO">

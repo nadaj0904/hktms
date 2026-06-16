@@ -23,9 +23,16 @@ public class AttachmentService {
     @Value("${hktms.upload.path}")
     private String uploadPath;
 
-    private static final long MAX_FILE_SIZE = 50 * 1024 * 1024L;
-    private static final java.util.Set<String> ALLOWED_EXTENSIONS =
-            java.util.Set.of("jpg", "jpeg", "png", "pdf", "xlsx", "docx");
+    private static final long MAX_FILE_SIZE = 20 * 1024 * 1024L;
+
+    private static final java.util.Set<String> ALLOWED_EXTENSIONS = java.util.Set.of(
+            "pdf", "ppt", "pptx", "xls", "xlsx", "doc", "docx", "hwp", "hwpx",
+            "jpg", "jpeg", "png"
+    );
+
+    private static final java.util.Set<String> BLOCKED_EXTENSIONS = java.util.Set.of(
+            "exe", "bat", "cmd", "sh", "js", "jar", "war"
+    );
 
     public AttachmentService(AttachmentMapper attachmentMapper) {
         this.attachmentMapper = attachmentMapper;
@@ -34,10 +41,13 @@ public class AttachmentService {
     @Transactional
     public AttachmentDTO upload(MultipartFile file, String referenceType, Long referenceId, Long actorId) throws IOException {
         if (file.isEmpty()) throw new IllegalArgumentException("파일이 비어 있습니다.");
-        if (file.getSize() > MAX_FILE_SIZE) throw new IllegalArgumentException("파일 크기는 50MB를 초과할 수 없습니다.");
+        if (file.getSize() > MAX_FILE_SIZE) throw new IllegalArgumentException("파일 크기는 20MB를 초과할 수 없습니다.");
 
         String originalFilename = file.getOriginalFilename();
         String ext = getExtension(originalFilename).toLowerCase();
+        if (BLOCKED_EXTENSIONS.contains(ext)) {
+            throw new IllegalArgumentException("보안상 허용되지 않는 파일 형식입니다. (" + ext + ")");
+        }
         if (!ALLOWED_EXTENSIONS.contains(ext)) {
             throw new IllegalArgumentException("허용되지 않는 파일 형식입니다. (" + ext + ")");
         }
@@ -56,6 +66,7 @@ public class AttachmentService {
         dto.setFilePath(target.toString());
         dto.setFileSize(file.getSize());
         dto.setFileType(file.getContentType());
+        dto.setCreatedId(actorId);
         attachmentMapper.insert(dto);
         return dto;
     }
@@ -77,6 +88,7 @@ public class AttachmentService {
     public void delete(Long attachmentId, Long actorId) {
         AttachmentDTO param = new AttachmentDTO();
         param.setAttachmentId(attachmentId);
+        param.setDeletedId(actorId);
         attachmentMapper.softDelete(param);
     }
 

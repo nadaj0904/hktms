@@ -154,13 +154,19 @@
                     <textarea id="defectFixContent" class="form-control" rows="3" placeholder="조치 내용을 입력하세요"></textarea>
                 </div>
             </div>
-            <!-- 첨부파일 영역 (등록 완료 후 표시) -->
-            <div id="attachmentSection" style="display:none; margin-top:16px;">
-                <label class="form-label">첨부파일</label>
+            <!-- 첨부파일 영역 -->
+            <div id="attachmentSection" style="margin-top:16px;">
+                <label class="form-label">첨부파일 <span style="font-size:11px;color:var(--text-muted);">파일당 최대 20MB · pdf, ppt(x), xls(x), doc(x), hwp(x), jpg, jpeg, png</span></label>
+                <!-- 등록 전 대기 파일 목록 -->
+                <div id="pendingFileList" class="attachment-list" style="display:none;"></div>
+                <!-- 등록 후 저장된 파일 목록 -->
                 <div id="attachmentList" class="attachment-list"></div>
-                <div style="margin-top:8px;">
-                    <input type="file" id="attachmentInput" style="display:none;" multiple accept=".jpg,.jpeg,.png,.pdf,.xlsx,.docx">
-                    <button class="btn btn-secondary btn-sm" id="btnAddAttachment"><i class="ph ph-paperclip"></i> 파일 추가</button>
+                <div class="attach-upload-area" id="attachDropArea">
+                    <i class="ph ph-upload-simple" style="font-size:24px;color:var(--text-muted);"></i>
+                    <span style="font-size:13px;color:var(--text-muted);">파일을 드래그하거나 버튼을 클릭하세요</span>
+                    <input type="file" id="attachmentInput" style="display:none;" multiple
+                           accept=".pdf,.ppt,.pptx,.xls,.xlsx,.doc,.docx,.hwp,.hwpx,.jpg,.jpeg,.png">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btnAddAttachment"><i class="ph ph-paperclip"></i> 파일 선택</button>
                 </div>
             </div>
         </div>
@@ -215,6 +221,118 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" data-close="defectStatusModal">취소</button>
             <button class="btn btn-primary" id="btnDefectStatusSave"><i class="ph ph-check"></i> 저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 결함 상세 모달 -->
+<div class="modal-overlay" id="defectDetailModal">
+    <div class="modal modal-xl">
+        <div class="modal-header">
+            <div>
+                <span class="modal-title" id="detailModalTitle">결함 상세</span>
+                <span id="detailDefectNo" style="font-size:12px;color:var(--text-muted);margin-left:8px;"></span>
+            </div>
+            <button class="modal-close" data-close="defectDetailModal"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="modal-body" style="padding:0;">
+
+            <!-- 기본 정보 영역 -->
+            <div class="detail-info-section">
+                <div class="detail-info-grid">
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="ph ph-briefcase"></i> 업무단위</span>
+                        <span class="detail-value" id="detailBusinessUnit">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="ph ph-folder"></i> 대분류</span>
+                        <span class="detail-value" id="detailMajorCategory">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="ph ph-folder-open"></i> 중분류</span>
+                        <span class="detail-value" id="detailMiddleCategory">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="ph ph-flag"></i> 결함상태</span>
+                        <span class="detail-value" id="detailStatusBadge">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="ph ph-user"></i> 등록자</span>
+                        <span class="detail-value" id="detailRegistrant">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="ph ph-wrench"></i> 담당개발자</span>
+                        <span class="detail-value" id="detailDeveloper">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="ph ph-check-circle"></i> 최종종료</span>
+                        <span class="detail-value" id="detailFinalClosedBadge">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label"><i class="ph ph-calendar"></i> 등록일시</span>
+                        <span class="detail-value" id="detailCreatedAt">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 상세내용 + 조치내용 -->
+            <div class="detail-content-section">
+                <div class="detail-block">
+                    <div class="detail-block-title">상세내용</div>
+                    <div class="detail-content-box" id="detailContent">-</div>
+                </div>
+                <div class="detail-block" id="detailFixBlock">
+                    <div class="detail-block-title">조치내용</div>
+                    <div class="detail-content-box detail-fix-box" id="detailFixContent">-</div>
+                </div>
+            </div>
+
+            <!-- 첨부파일 -->
+            <div class="detail-attach-section" id="detailAttachSection">
+                <div class="detail-block-title"><i class="ph ph-paperclip"></i> 첨부파일</div>
+                <div class="attachment-list" id="detailAttachList"></div>
+            </div>
+
+            <!-- 상태 변경 패널 -->
+            <div class="detail-status-panel">
+                <div class="detail-status-panel-title"><i class="ph ph-arrows-clockwise"></i> 상태 변경</div>
+                <div class="status-steps" id="detailStatusSteps">
+                    <div class="step-item" data-step="ANALYSIS">분석중</div>
+                    <div class="step-item" data-step="FIXING">조치중</div>
+                    <div class="step-item" data-step="FIX_COMPLETE">조치완료</div>
+                    <div class="step-item" data-step="RETEST">재테스트중</div>
+                    <div class="step-item" data-step="CLOSED">종료</div>
+                </div>
+                <div class="form-grid" style="margin-top:14px;">
+                    <div class="form-group">
+                        <label class="form-label">결함 상태</label>
+                        <select id="detailStatusValue" class="form-control">
+                            <option value="ANALYSIS">분석중</option>
+                            <option value="FIXING">조치중</option>
+                            <option value="FIX_COMPLETE">조치완료</option>
+                            <option value="RETEST">재테스트중</option>
+                            <option value="CLOSED">종료</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">최종 종료</label>
+                        <select id="detailFinalClosedSelect" class="form-control">
+                            <option value="false">아니오</option>
+                            <option value="true">예</option>
+                        </select>
+                    </div>
+                    <div class="form-group span-2">
+                        <label class="form-label">조치내용 입력</label>
+                        <textarea id="detailStatusFixContent" class="form-control" rows="2" placeholder="조치 내용을 입력하세요"></textarea>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" data-close="defectDetailModal"><i class="ph ph-x"></i> 닫기</button>
+            <button class="btn btn-warning" id="btnDetailEdit"><i class="ph ph-pencil-simple"></i> 수정</button>
+            <button class="btn btn-primary" id="btnDetailStatusSave"><i class="ph ph-check"></i> 상태 저장</button>
         </div>
     </div>
 </div>

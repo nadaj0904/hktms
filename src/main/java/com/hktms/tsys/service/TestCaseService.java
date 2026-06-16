@@ -1,7 +1,9 @@
 package com.hktms.tsys.service;
 
+import com.hktms.tsys.domain.CodeDTO;
 import com.hktms.tsys.domain.TestCaseDTO;
 import com.hktms.tsys.domain.UserDTO;
+import com.hktms.tsys.repository.CodeMapper;
 import com.hktms.tsys.repository.TestCaseMapper;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -11,15 +13,19 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class TestCaseService {
 
     private final TestCaseMapper testCaseMapper;
+    private final CodeMapper codeMapper;
     private final AuditLogService auditLogService;
 
-    public TestCaseService(TestCaseMapper testCaseMapper, AuditLogService auditLogService) {
+    public TestCaseService(TestCaseMapper testCaseMapper, CodeMapper codeMapper,
+                           AuditLogService auditLogService) {
         this.testCaseMapper = testCaseMapper;
+        this.codeMapper = codeMapper;
         this.auditLogService = auditLogService;
     }
 
@@ -86,31 +92,96 @@ public class TestCaseService {
                 "테스트케이스 삭제: " + testCaseId);
     }
 
+    /**
+     * 엑셀 템플릿 파싱 (Row 구조: Row0=제목, Row1=공백, Row2=헤더, Row3+=데이터)
+     * 컬럼 순서: 0=업무단위, 1=대분류, 2=중분류, 3=소분류, 4=테스트명
+     * 각 셀의 한글 코드명을 DB 코드값으로 변환하여 반환
+     */
     public List<Map<String, Object>> parseExcel(MultipartFile file) throws IOException {
         List<Map<String, Object>> rows = new ArrayList<>();
+
+        // BUSINESS_CATEGORY: 코드명 → 코드값 맵
+        Map<String, String> bizNameToValue = codeMapper.findByGroupCode("BUSINESS_CATEGORY")
+                .stream().collect(Collectors.toMap(CodeDTO::getCodeName, CodeDTO::getCodeValue, (a, b) -> a));
+
+        // 코드 캐시: "businessUnit:LEVEL:parentCodeValue" → (코드명 → 코드값)
+        Map<String, Map<String, String>> codeCache = new HashMap<>();
+
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
-            Row header = sheet.getRow(0);
-            if (header == null) return rows;
 
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+            for (int i = 3; i <= sheet.getLastRowNum(); i++) {   // 데이터는 Row 3부터
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
-                Map<String, Object> rowMap = new LinkedHashMap<>();
-                rowMap.put("rowNum", i + 1);
-                rowMap.put("majorCategory",  getCellValue(row, 0));
-                rowMap.put("middleCategory", getCellValue(row, 1));
-                rowMap.put("minorCategory",  getCellValue(row, 2));
-                rowMap.put("testCaseName",   getCellValue(row, 3));
-                rowMap.put("testContent",    getCellValue(row, 4));
-                rowMap.put("remark",         getCellValue(row, 5));
+                String bizUnitName  = getCellValue(row, 0);
+                String majorName    = getCellValue(row, 1);
+                String middleName   = getCellValue(row, 2);
+                String minorName    = getCellValue(row, 3);
+                String testCaseName = getCellValue(row, 4);
 
-                String error = "";
-                if (rowMap.get("testCaseName") == null || rowMap.get("testCaseName").toString().isBlank()) {
-                    error = "테스트명 필수 입력";
+                // 완전히 빈 행 스킵
+                if (bizUnitName.isBlank() && testCaseName.isBlank()) continue;
+
+                StringBuilder errors = new StringBuilder();
+
+                // 업무단위 코드값 조회
+                String bizUnit = bizNameToValue.get(bizUnitName);
+                if (bizUnit == null && !bizUnitName.isBlank()) {
+                    errors.append("업무단위 미등록(").append(bizUnitName).append(") ");
                 }
-                rowMap.put("error", error);
+
+                // 대분류 코드값 조회 — final로 선언해야 중분류 람다에서 캡처 가능
+                final String majorCode;
+                if (bizUnit != null && !majorName.isBlank()) {
+                    Map<String, String> map = codeCache.computeIfAbsent(bizUnit + ":MAJOR:", k ->
+                            codeMapper.findCodesByBusinessUnitAndLevel(bizUnit, "MAJOR", null)
+                                    .stream().collect(Collectors.toMap(CodeDTO::getCodeName, CodeDTO::getCodeValue, (a, b) -> a)));
+                    String resolved = map.get(majorName);
+                    if (resolved == null) errors.append("대분류 미등록(").append(majorName).append(") ");
+                    majorCode = resolved;
+                } else {
+                    majorCode = null;
+                }
+
+                // 중분류 코드값 조회 — final로 선언해야 소분류 람다에서 캡처 가능
+                final String middleCode;
+                if (bizUnit != null && majorCode != null && !middleName.isBlank()) {
+                    Map<String, String> map = codeCache.computeIfAbsent(bizUnit + ":MIDDLE:" + majorCode, k ->
+                            codeMapper.findCodesByBusinessUnitAndLevel(bizUnit, "MIDDLE", majorCode)
+                                    .stream().collect(Collectors.toMap(CodeDTO::getCodeName, CodeDTO::getCodeValue, (a, b) -> a)));
+                    String resolved = map.get(middleName);
+                    if (resolved == null) errors.append("중분류 미등록(").append(middleName).append(") ");
+                    middleCode = resolved;
+                } else {
+                    middleCode = null;
+                }
+
+                // 소분류 코드값 조회 (선택항목 — 미등록이어도 오류 아님)
+                String minorCode = null;
+                if (bizUnit != null && middleCode != null && !minorName.isBlank()) {
+                    Map<String, String> map = codeCache.computeIfAbsent(bizUnit + ":MINOR:" + middleCode, k ->
+                            codeMapper.findCodesByBusinessUnitAndLevel(bizUnit, "MINOR", middleCode)
+                                    .stream().collect(Collectors.toMap(CodeDTO::getCodeName, CodeDTO::getCodeValue, (a, b) -> a)));
+                    minorCode = map.get(minorName);
+                }
+
+                if (testCaseName.isBlank()) errors.append("테스트명 필수");
+
+                Map<String, Object> rowMap = new LinkedHashMap<>();
+                rowMap.put("rowNum",            i + 1);
+                // 화면 표시용 (한글명)
+                rowMap.put("businessUnitName",  bizUnitName);
+                rowMap.put("majorCategoryName", majorName);
+                rowMap.put("middleCategoryName",middleName);
+                rowMap.put("minorCategoryName", minorName);
+                rowMap.put("testCaseName",      testCaseName);
+                // 임포트용 (코드값)
+                rowMap.put("businessUnit",      bizUnit);
+                rowMap.put("majorCategory",     majorCode);
+                rowMap.put("middleCategory",    middleCode);
+                rowMap.put("minorCategory",     minorCode);
+                rowMap.put("error",             errors.toString().trim());
                 rows.add(rowMap);
             }
         }

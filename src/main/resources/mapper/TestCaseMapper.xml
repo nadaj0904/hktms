@@ -38,15 +38,19 @@
         <where>
             tc.deleted_at IS NULL
             <if test="keyword != null and keyword != ''">
-                AND (tc.test_case_name ILIKE '%' || #{keyword} || '%'
-                  OR tc.major_category  ILIKE '%' || #{keyword} || '%'
-                  OR tc.minor_category  ILIKE '%' || #{keyword} || '%')
+                AND tc.test_case_name ILIKE '%' || #{keyword} || '%'
             </if>
             <if test="searchStatus != null and searchStatus != ''">
                 AND tc.test_status = #{searchStatus}
             </if>
-            <if test="searchCategory != null and searchCategory != ''">
-                AND tc.major_category = #{searchCategory}
+            <if test="businessUnit != null and businessUnit != ''">
+                AND tc.business_unit = #{businessUnit}
+            </if>
+            <if test="majorCategory != null and majorCategory != ''">
+                AND tc.major_category = #{majorCategory}
+            </if>
+            <if test="middleCategory != null and middleCategory != ''">
+                AND tc.middle_category = #{middleCategory}
             </if>
         </where>
     </sql>

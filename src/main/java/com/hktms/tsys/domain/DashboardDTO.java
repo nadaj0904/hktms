@@ -26,6 +26,7 @@ public class DashboardDTO {
 
     public static class CategoryProgressDTO {
         private String majorCategory;
+        private String businessUnitName;
         private long totalCount;
         private long successCount;
         private long failCount;
@@ -33,6 +34,8 @@ public class DashboardDTO {
 
         public String getMajorCategory() { return majorCategory; }
         public void setMajorCategory(String majorCategory) { this.majorCategory = majorCategory; }
+        public String getBusinessUnitName() { return businessUnitName; }
+        public void setBusinessUnitName(String businessUnitName) { this.businessUnitName = businessUnitName; }
         public long getTotalCount() { return totalCount; }
         public void setTotalCount(long totalCount) { this.totalCount = totalCount; }
         public long getSuccessCount() { return successCount; }

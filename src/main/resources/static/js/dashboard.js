@@ -57,10 +57,11 @@ function renderCategoryProgress(list) {
     }
 
     list.forEach(function (item) {
-        const pct = item.progressRate || 0;
+        const pct      = item.progressRate || 0;
+        const bizLabel = item.businessUnitName || item.majorCategory || '-';
         const row = `
             <div class="progress-row">
-                <span class="progress-label" title="${escHtml(item.majorCategory)}">${escHtml(item.majorCategory)}</span>
+                <span class="progress-label" title="${escHtml(bizLabel)}">${escHtml(bizLabel)}</span>
                 <div class="progress-bar-wrap">
                     <div class="progress-bar success" style="width:${pct}%"></div>
                 </div>
