@@ -10,7 +10,7 @@ function loadUserInfo() {
         const u = res.data;
         if (u) {
             $('#userAvatar').text(u.userName ? u.userName.charAt(0) : '?');
-            $('#userName').text(u.userName + ' 님');
+            $('#userName').text(u.userName + ' 님(' + roleLabel(u.role) + ')');
         }
     }, function () { /* 세션 정보 없음 처리 불필요 */ });
 }

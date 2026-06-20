@@ -4,10 +4,15 @@ var previewData      = [];
 var userList         = [];
 var currentTcDetailId = null;
 var currentTcDetail   = null;
+var currentUserRole   = null;
+var fromTcPendingFiles = [];
+
+var TC_ALLOWED_EXTS  = ['pdf','ppt','pptx','xls','xlsx','doc','docx','hwp','hwpx','jpg','jpeg','png'];
+var TC_BLOCKED_EXTS  = ['exe','bat','cmd','sh','js','jar','war'];
+var TC_MAX_FILE_BYTES = 20 * 1024 * 1024;
 
 $(function () {
     loadCodes();
-    loadList();
     bindEvents();
     loadUserInfo();
 });
@@ -15,8 +20,15 @@ $(function () {
 function loadUserInfo() {
     sendAjax('/api/v1/session/user', 'GET', null, function (res) {
         const u = res.data;
-        if (u) { $('#userAvatar').text(u.userName.charAt(0)); $('#userName').text(u.userName + ' 님'); }
-    }, function(){});
+        if (u) {
+            $('#userAvatar').text(u.userName.charAt(0));
+            $('#userName').text(u.userName + ' 님(' + roleLabel(u.role) + ')');
+            currentUserRole = u.role;
+        }
+        loadList();
+    }, function(){
+        loadList();
+    });
 }
 
 /* =========================================
@@ -24,13 +36,35 @@ function loadUserInfo() {
    ========================================= */
 function loadCodes() {
     sendAjax('/api/v1/testcase/codes', 'GET', null, function (res) {
-        userList = res.data.users || [];
-        const $dev    = $('#tcDeveloperId');
-        const $tester = $('#tcTesterId');
-        userList.forEach(function (u) {
-            $dev.append('<option value="' + u.userId + '">' + escHtml(u.userName) + ' (' + (u.organization||'') + ')</option>');
-            $tester.append('<option value="' + u.userId + '">' + escHtml(u.userName) + ' (' + (u.organization||'') + ')</option>');
+        // 개발담당자 (DEVELOPER 역할만)
+        const developers = res.data.developers || [];
+        const $dev = $('#tcDeveloperId');
+        const $fromTcDev = $('#fromTcDeveloper');
+        developers.forEach(function (u) {
+            const opt = '<option value="' + u.userId + '">' + escHtml(u.userName) + ' (' + (u.organization||'') + ')</option>';
+            $dev.append(opt);
+            $fromTcDev.append(opt);
         });
+
+        // 테스트담당자 (USER + PMO 역할) — 로그인 사용자 첫 번째
+        const testers      = res.data.testers      || [];
+        const loginUserId  = res.data.loginUserId;
+        const loginRole    = res.data.loginUserRole;
+        const $tester = $('#tcTesterId');
+
+        // 로그인 사용자가 현업/PMO인 경우 첫 번째로 추가
+        const loginUser = testers.find(function (u) { return u.userId == loginUserId; });
+        if (loginUser && (loginRole === 'USER' || loginRole === 'PMO')) {
+            $tester.append('<option value="' + loginUser.userId + '">' + escHtml(loginUser.userName) + ' (' + (loginUser.organization||'') + ')</option>');
+        }
+        testers.forEach(function (u) {
+            if (u.userId != loginUserId) {
+                $tester.append('<option value="' + u.userId + '">' + escHtml(u.userName) + ' (' + (u.organization||'') + ')</option>');
+            }
+        });
+
+        // userList (전체) — 이후 editModal에서 참조용
+        userList = testers;
 
         const biz = res.data.businessCategories || [];
         // 등록 모달용 드롭다운
@@ -43,6 +77,11 @@ function loadCodes() {
         biz.forEach(function (c) {
             $filterBiz.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
         });
+
+        // 신규 등록 시 테스트 담당자 기본값을 로그인 사용자로 설정
+        if (loginUserId && (loginRole === 'USER' || loginRole === 'PMO')) {
+            $('#tcTesterId').val(loginUserId);
+        }
     }, function(){});
 }
 
@@ -141,6 +180,9 @@ function renderTable(list) {
             : '<span class="available-badge available-n">불가</span>';
         const retestBadge = item.isRetestRequested
             ? '<span class="retest-badge">재요청</span>' : '-';
+        const deleteBtnHtml = (currentUserRole === 'PMO' || currentUserRole === 'USER')
+            ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); if(confirm('삭제하시겠습니까?')) deleteTc(${item.testCaseId})"><i class="ph ph-trash"></i> 삭제</button>`
+            : '';
         const tr = `<tr class="clickable-row" data-id="${item.testCaseId}">
             <td>${no}</td>
             <td>${escHtml(item.businessUnitName || item.businessUnit || '-')}</td>
@@ -155,10 +197,9 @@ function renderTable(list) {
             <td>${formatDate(item.completedDate)}</td>
             <td>${retestBadge}</td>
             <td style="white-space:nowrap;">
-                <div style="display:flex;gap:4px;" onclick="event.stopPropagation()">
-                    <button class="btn btn-primary   btn-sm btn-status" data-id="${item.testCaseId}"><i class="ph ph-arrows-clockwise"></i> 상태변경</button>
-                    <button class="btn btn-secondary btn-sm btn-edit"   data-id="${item.testCaseId}"><i class="ph ph-pencil-simple"></i> 수정</button>
-                    <button class="btn btn-danger    btn-sm btn-delete" data-id="${item.testCaseId}"><i class="ph ph-trash"></i> 삭제</button>
+                <div style="display:flex;gap:4px;">
+                    <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openEditModal(${item.testCaseId})"><i class="ph ph-pencil-simple"></i> 수정</button>
+                    ${deleteBtnHtml}
                 </div>
             </td>
         </tr>`;
@@ -233,26 +274,35 @@ function bindEvents() {
         openTcDetailModal($(this).data('id'));
     });
 
-    // 수정/삭제/상태변경 (이벤트 위임)
-    $('#tcTableBody').on('click', '.btn-edit', function () {
-        openEditModal($(this).data('id'));
-    });
-    $('#tcTableBody').on('click', '.btn-delete', function () {
-        if (confirm('삭제하시겠습니까?')) deleteTc($(this).data('id'));
-    });
+    // 상태변경 버튼 (이벤트 위임)
     $('#tcTableBody').on('click', '.btn-status', function () {
         openStatusModal($(this).data('id'));
     });
 
-    // 상세 모달 – 수정 버튼
-    $('#btnTcDetailEdit').on('click', function () {
-        closeModal('tcDetailModal');
-        openEditModal(currentTcDetailId);
+    // 상세 모달 버튼들은 testCase.html에 inline onclick으로 직접 바인딩됨
+    // TC 연계 결함 등록 저장
+    $('#btnFromTcDefectSave').on('click', saveDefectFromTc);
+
+    // 결함 등록 팝업 파일 첨부
+    $('#btnFromTcAddAttachment').on('click', function () {
+        $('#fromTcAttachmentInput').val('').click();
     });
-    // 상세 모달 – 상태 저장
-    $('#btnTcDetailStatusSave').on('click', saveTcDetailStatus);
-    // 상세 모달 – 결함관리 등록
-    $('#btnTcDetailToDefect').on('click', goToDefectCreate);
+    $('#fromTcAttachmentInput').on('change', function () {
+        if (this.files.length) handleFromTcFileSelection(this.files);
+    });
+    var $dropArea = $('#fromTcDropArea');
+    $dropArea.on('dragover dragenter', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        $(this).addClass('drag-over');
+    });
+    $dropArea.on('dragleave drop', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        $(this).removeClass('drag-over');
+    });
+    $dropArea.on('drop', function (e) {
+        var files = e.originalEvent.dataTransfer.files;
+        if (files.length) handleFromTcFileSelection(files);
+    });
 
     // 엑셀 업로드
     $('#btnExcelUpload').on('click', function () { $('#excelFileInput').val('').click(); });
@@ -271,8 +321,10 @@ function openCreateModal() {
     $('#tcId').val('');
     $('#tcBusinessUnit').val('');
     resetTcCascade(1);
-    $('#tcName, #tcContent, #tcRemark').val('');
-    $('#tcDeveloperId, #tcTesterId').val('');
+    $('#tcName, #tcContent, #tcInputData, #tcExpectedResult, #tcRemark').val('');
+    $('#tcDeveloperId').val('');
+    // 테스트 담당자는 현재 선택된 첫 번째 옵션(로그인 사용자)으로 유지
+    $('#tcTesterId').val($('#tcTesterId option:nth-child(2)').val() || '');
     $('#tcAvailable').val('true');
     openModal('tcFormModal');
 }
@@ -284,6 +336,8 @@ function openEditModal(tcId) {
         $('#tcId').val(d.testCaseId);
         $('#tcName').val(d.testCaseName);
         $('#tcContent').val(d.testContent || '');
+        $('#tcInputData').val(d.inputData || '');
+        $('#tcExpectedResult').val(d.expectedResult || '');
         $('#tcDeveloperId').val(d.developerId || '');
         $('#tcTesterId').val(d.testerId || '');
         $('#tcAvailable').val(d.isTestAvailable ? 'true' : 'false');
@@ -320,11 +374,13 @@ function saveTc() {
         middleCategory:  $('#tcMiddleCategory').val() || null,
         minorCategory:   $('#tcMinorCategory').val() || null,
         testCaseName:    name,
-        testContent:     $('#tcContent').val().trim() || null,
-        developerId:     $('#tcDeveloperId').val() || null,
-        testerId:        $('#tcTesterId').val() || null,
+        testContent:     $('#tcContent').val().trim()        || null,
+        inputData:       $('#tcInputData').val().trim()      || null,
+        expectedResult:  $('#tcExpectedResult').val().trim() || null,
+        developerId:     $('#tcDeveloperId').val()           || null,
+        testerId:        $('#tcTesterId').val()              || null,
         isTestAvailable: $('#tcAvailable').val() === 'true',
-        remark:          $('#tcRemark').val().trim() || null
+        remark:          $('#tcRemark').val().trim()         || null
     };
 
     const tcId = $('#tcId').val();
@@ -478,6 +534,10 @@ function openTcDetailModal(tcId) {
         // 테스트 내용
         $('#tcDetailContent').html(d.testContent ? escHtml(d.testContent).replace(/\n/g, '<br>') : '-');
 
+        // 입력 데이터 / 예상 결과
+        $('#tcDetailInputData').html(d.inputData ? escHtml(d.inputData).replace(/\n/g, '<br>') : '-');
+        $('#tcDetailExpectedResult').html(d.expectedResult ? escHtml(d.expectedResult).replace(/\n/g, '<br>') : '-');
+
         // 테스트 결과
         if (d.testResult) {
             $('#tcDetailResult').html(escHtml(d.testResult).replace(/\n/g, '<br>'));
@@ -504,20 +564,62 @@ function saveTcDetailStatus() {
         testResult:        $('#tcDetailResultInput').val().trim() || null
     };
     sendAjax('/api/v1/testcase/' + currentTcDetailId + '/status', 'PUT', data, function () {
-        openTcDetailModal(currentTcDetailId);
+        closeModal('tcDetailModal');
+        alert('상태코드 변경 되었습니다.');
         loadList(currentPage);
     });
 }
 
 function goToDefectCreate() {
     if (!currentTcDetail) return;
-    sessionStorage.setItem('defect_prefill', JSON.stringify({
-        businessUnit:  currentTcDetail.businessUnit  || '',
-        majorCategory: currentTcDetail.majorCategory || '',
-        middleCategory:currentTcDetail.middleCategory|| '',
-        developerId:   currentTcDetail.testerId      || ''
-    }));
-    location.href = '/defect';
+    closeModal('tcDetailModal');
+    $('#fromTcTestCaseId').val(currentTcDetail.testCaseId || '');
+    $('#fromTcTitle').val(currentTcDetail.testCaseName || '');
+    $('#fromTcInputData').val(currentTcDetail.inputData || '');
+    $('#fromTcContent, #fromTcFixContent').val('');
+    $('#fromTcDeveloper').val(currentTcDetail.developerId || '');
+    // 파일 첨부 초기화
+    fromTcPendingFiles = [];
+    $('#fromTcPendingFileList').hide().empty();
+    $('#fromTcAttachmentInput').val('');
+    openModal('fromTcDefectModal');
+}
+
+function saveDefectFromTc() {
+    var content = $('#fromTcContent').val().trim();
+    if (!content) { alert('결함 상세내용은 필수 입력입니다.'); return; }
+
+    var tcId = $('#fromTcTestCaseId').val();
+    var data = {
+        testCaseId:    tcId ? parseInt(tcId) : null,
+        businessUnit:  currentTcDetail.businessUnit  || null,
+        majorCategory: currentTcDetail.majorCategory || null,
+        middleCategory:currentTcDetail.middleCategory|| null,
+        title:         currentTcDetail.testCaseName  || '',
+        content:       content,
+        fixContent:    $('#fromTcFixContent').val().trim() || null,
+        developerId:   $('#fromTcDeveloper').val() || null
+    };
+
+    sendAjax('/api/v1/defect', 'POST', data, function (res) {
+        var newDefectId = res.data ? res.data.defectId : null;
+        var doFinish = function () {
+            if (tcId) {
+                sendAjax('/api/v1/testcase/' + tcId + '/status', 'PUT',
+                    { testStatus: 'FAIL', isRetestRequested: false, testResult: null },
+                    function () { location.href = '/defect'; },
+                    function () { location.href = '/defect'; }
+                );
+            } else {
+                location.href = '/defect';
+            }
+        };
+        if (newDefectId && fromTcPendingFiles.length > 0) {
+            uploadFromTcFilesSequentially(fromTcPendingFiles.slice(), newDefectId, doFinish);
+        } else {
+            doFinish();
+        }
+    });
 }
 
 function updateTcDetailStatusSteps(currentStatus) {
@@ -573,6 +675,88 @@ function resetFilterCascade(fromLevel) {
             .append('<option value="">중분류 전체</option>')
             .prop('disabled', true);
     }
+}
+
+/* =========================================
+   결함 등록 팝업 파일 첨부
+   ========================================= */
+function tcExtIconClass(ext) {
+    if (['jpg','jpeg','png'].includes(ext))           return 'ph ph-image';
+    if (['pdf'].includes(ext))                         return 'ph ph-file-pdf';
+    if (['xls','xlsx'].includes(ext))                  return 'ph ph-file-xls';
+    if (['doc','docx'].includes(ext))                  return 'ph ph-file-doc';
+    if (['ppt','pptx'].includes(ext))                  return 'ph ph-file-ppt';
+    if (['hwp','hwpx'].includes(ext))                  return 'ph ph-file-text';
+    return 'ph ph-file';
+}
+
+function validateTcFile(file) {
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (TC_BLOCKED_EXTS.includes(ext)) return '보안 차단 확장자입니다: .' + ext;
+    if (!TC_ALLOWED_EXTS.includes(ext)) return '허용되지 않는 파일 형식입니다: .' + ext;
+    if (file.size > TC_MAX_FILE_BYTES)  return '파일 크기가 20MB를 초과합니다: ' + file.name;
+    return null;
+}
+
+function handleFromTcFileSelection(files) {
+    var errors = [];
+    Array.from(files).forEach(function (f) {
+        var err = validateTcFile(f);
+        if (err) { errors.push(err); return; }
+        var dup = fromTcPendingFiles.some(function (p) { return p.name === f.name && p.size === f.size; });
+        if (!dup) fromTcPendingFiles.push(f);
+    });
+    if (errors.length) alert(errors.join('\n'));
+    renderFromTcPendingFiles();
+}
+
+function renderFromTcPendingFiles() {
+    var $list = $('#fromTcPendingFileList');
+    if (!fromTcPendingFiles.length) { $list.hide().empty(); return; }
+    $list.empty().show();
+    fromTcPendingFiles.forEach(function (f, idx) {
+        var ext    = f.name.split('.').pop().toLowerCase();
+        var sizeKb = (f.size / 1024).toFixed(1) + 'KB';
+        var item = '<div class="attachment-item" data-pending-idx="' + idx + '">'
+            + '<div class="attachment-item-left">'
+            +   '<i class="ph ph-paperclip attachment-icon ' + tcExtIconClass(ext) + '"></i>'
+            +   '<div>'
+            +     '<span class="attachment-name">' + escHtml(f.name) + '</span>'
+            +     '<div class="attachment-size">' + sizeKb + ' · 저장 후 업로드됩니다</div>'
+            +   '</div>'
+            + '</div>'
+            + '<button type="button" class="btn btn-danger btn-sm btn-icon btn-fromtc-remove" data-idx="' + idx + '"><i class="ph ph-x"></i></button>'
+            + '</div>';
+        $list.append(item);
+    });
+    $list.off('click', '.btn-fromtc-remove').on('click', '.btn-fromtc-remove', function () {
+        fromTcPendingFiles.splice(parseInt($(this).data('idx')), 1);
+        renderFromTcPendingFiles();
+    });
+}
+
+function uploadFromTcFilesSequentially(files, defectId, done) {
+    if (!files.length) { done(); return; }
+    var file = files.shift();
+    var fd = new FormData();
+    fd.append('file', file);
+    showLoading();
+    $.ajax({
+        url: '/api/v1/defect/' + defectId + '/attachments',
+        type: 'POST',
+        data: fd,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function () {
+            hideLoading();
+            uploadFromTcFilesSequentially(files, defectId, done);
+        },
+        error: function () {
+            hideLoading();
+            uploadFromTcFilesSequentially(files, defectId, done);
+        }
+    });
 }
 
 /* =========================================

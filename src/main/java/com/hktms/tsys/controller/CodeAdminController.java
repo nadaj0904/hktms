@@ -21,7 +21,9 @@ public class CodeAdminController {
     }
 
     @GetMapping("/admin/codes")
-    public String codeAdminPage() {
+    public String codeAdminPage(HttpSession session) {
+        UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
+        if (loginUser == null || !"PMO".equals(loginUser.getRole())) return "redirect:/dashboard";
         return "codeAdmin";
     }
 

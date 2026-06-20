@@ -4,7 +4,7 @@
 <mapper namespace="com.hktms.tsys.repository.DefectMapper">
 
     <sql id="baseColumns">
-        d.defect_id, d.test_case_id, tc.test_case_name,
+        d.defect_id, d.test_case_id, tc.test_case_name, tc.test_content AS test_case_content,
         d.business_name, d.business_unit, d.major_category, d.middle_category,
         d.title, d.content,
         d.registrant_id, ru.user_name AS registrant_name,
@@ -34,12 +34,19 @@
             d.deleted_at IS NULL
             <if test="keyword != null and keyword != ''">
                 AND (d.title         ILIKE '%' || #{keyword} || '%'
-                  OR d.business_name ILIKE '%' || #{keyword} || '%'
-                  OR d.business_unit ILIKE '%' || #{keyword} || '%'
                   OR d.content       ILIKE '%' || #{keyword} || '%')
             </if>
             <if test="searchStatus != null and searchStatus != ''">
                 AND d.defect_status = #{searchStatus}
+            </if>
+            <if test="searchBusinessUnit != null and searchBusinessUnit != ''">
+                AND d.business_unit = #{searchBusinessUnit}
+            </if>
+            <if test="searchMajorCategory != null and searchMajorCategory != ''">
+                AND d.major_category = #{searchMajorCategory}
+            </if>
+            <if test="searchMiddleCategory != null and searchMiddleCategory != ''">
+                AND d.middle_category = #{searchMiddleCategory}
             </if>
         </where>
     </sql>
@@ -76,7 +83,7 @@
           AND d.deleted_at IS NULL
     </select>
 
-    <insert id="insert" parameterType="com.hktms.tsys.domain.DefectDTO">
+    <insert id="insert" parameterType="com.hktms.tsys.domain.DefectDTO" useGeneratedKeys="true" keyProperty="defectId">
         INSERT INTO TB_HKTMS_DEFECT
             (test_case_id, business_unit, major_category, middle_category,
              title, content, registrant_id, developer_id,

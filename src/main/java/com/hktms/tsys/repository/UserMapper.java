@@ -11,6 +11,7 @@ public interface UserMapper {
     List<UserDTO> findAll(UserDTO param);
     int count(UserDTO param);
     List<UserDTO> findByRole(String role);
+    List<UserDTO> findByRoles(List<String> roles);
     void insert(UserDTO user);
     void update(UserDTO user);
     void softDelete(UserDTO user);

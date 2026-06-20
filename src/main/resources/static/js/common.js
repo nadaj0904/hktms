@@ -155,6 +155,11 @@ const DEFECT_STATUS_BADGE = {
 function testStatusBadge(status)   { return TEST_STATUS_BADGE[status]   || status; }
 function defectStatusBadge(status) { return DEFECT_STATUS_BADGE[status] || status; }
 
+function roleLabel(role) {
+    var map = { 'USER': '현업사용자', 'DEVELOPER': '개발자', 'PMO': 'PMO' };
+    return map[role] || role || '';
+}
+
 /* =========================================
    날짜 포맷 유틸
    ========================================= */

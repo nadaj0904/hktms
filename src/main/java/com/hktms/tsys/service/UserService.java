@@ -46,6 +46,10 @@ public class UserService {
         return userMapper.findByRole("DEVELOPER");
     }
 
+    public List<UserDTO> getTesterList() {
+        return userMapper.findByRoles(java.util.List.of("USER", "PMO"));
+    }
+
     public List<UserDTO> getAllActiveUsers() {
         UserDTO param = new UserDTO();
         param.setIsActive(true);

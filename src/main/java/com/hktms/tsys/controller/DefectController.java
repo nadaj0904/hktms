@@ -37,11 +37,17 @@ public class DefectController {
     public ApiResponse<Map<String, Object>> getList(
             @RequestParam(defaultValue = "") String keyword,
             @RequestParam(defaultValue = "") String searchStatus,
+            @RequestParam(defaultValue = "") String searchBusinessUnit,
+            @RequestParam(defaultValue = "") String searchMajorCategory,
+            @RequestParam(defaultValue = "") String searchMiddleCategory,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         DefectDTO param = new DefectDTO();
         param.setKeyword(keyword);
         param.setSearchStatus(searchStatus);
+        param.setSearchBusinessUnit(searchBusinessUnit.isEmpty() ? null : searchBusinessUnit);
+        param.setSearchMajorCategory(searchMajorCategory.isEmpty() ? null : searchMajorCategory);
+        param.setSearchMiddleCategory(searchMiddleCategory.isEmpty() ? null : searchMiddleCategory);
         param.setPage(page);
         param.setSize(size);
         return ApiResponse.success("조회 성공", defectService.getDefectList(param));
@@ -57,10 +63,12 @@ public class DefectController {
 
     @PostMapping("/api/v1/defect")
     @ResponseBody
-    public ApiResponse<Void> create(@RequestBody DefectDTO dto, HttpSession session) {
+    public ApiResponse<Map<String, Object>> create(@RequestBody DefectDTO dto, HttpSession session) {
         UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
-        defectService.createDefect(dto, loginUser);
-        return ApiResponse.success("등록되었습니다.", null);
+        Long defectId = defectService.createDefect(dto, loginUser);
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("defectId", defectId);
+        return ApiResponse.success("등록되었습니다.", result);
     }
 
     @PutMapping("/api/v1/defect/{defectId}")

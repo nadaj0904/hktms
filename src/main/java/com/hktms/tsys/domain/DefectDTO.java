@@ -7,6 +7,7 @@ public class DefectDTO {
     private Long defectId;
     private Long testCaseId;
     private String testCaseName;
+    private String testCaseContent;
     private String businessName;
     private String businessUnit;
     private String majorCategory;
@@ -35,6 +36,9 @@ public class DefectDTO {
     // 검색 파라미터
     private String keyword;
     private String searchStatus;
+    private String searchBusinessUnit;
+    private String searchMajorCategory;
+    private String searchMiddleCategory;
     private int page;
     private int size;
     private int offset;
@@ -45,6 +49,8 @@ public class DefectDTO {
     public void setTestCaseId(Long testCaseId) { this.testCaseId = testCaseId; }
     public String getTestCaseName() { return testCaseName; }
     public void setTestCaseName(String testCaseName) { this.testCaseName = testCaseName; }
+    public String getTestCaseContent() { return testCaseContent; }
+    public void setTestCaseContent(String testCaseContent) { this.testCaseContent = testCaseContent; }
     public String getBusinessName() { return businessName; }
     public void setBusinessName(String businessName) { this.businessName = businessName; }
     public String getBusinessUnit() { return businessUnit; }
@@ -97,6 +103,12 @@ public class DefectDTO {
     public void setKeyword(String keyword) { this.keyword = keyword; }
     public String getSearchStatus() { return searchStatus; }
     public void setSearchStatus(String searchStatus) { this.searchStatus = searchStatus; }
+    public String getSearchBusinessUnit() { return searchBusinessUnit; }
+    public void setSearchBusinessUnit(String searchBusinessUnit) { this.searchBusinessUnit = searchBusinessUnit; }
+    public String getSearchMajorCategory() { return searchMajorCategory; }
+    public void setSearchMajorCategory(String searchMajorCategory) { this.searchMajorCategory = searchMajorCategory; }
+    public String getSearchMiddleCategory() { return searchMiddleCategory; }
+    public void setSearchMiddleCategory(String searchMiddleCategory) { this.searchMiddleCategory = searchMiddleCategory; }
     public int getPage() { return page; }
     public void setPage(int page) { this.page = page; }
     public int getSize() { return size; }

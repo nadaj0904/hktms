@@ -19,7 +19,7 @@
     <!-- 사이드바 -->
     <aside class="sidebar">
         <div class="logo-area">
-            <img th:src="@{/img/customerCI.png}" alt="CI" class="logo-img">
+            <a th:href="@{/dashboard}" style="display:block;"><img th:src="@{/img/customerCI.png}" alt="CI" class="logo-img"></a>
         </div>
         <nav class="nav-menu">
             <p class="nav-section-title">메뉴</p>
@@ -29,17 +29,17 @@
             </a>
             <a class="nav-item" th:href="@{/testcase}">
                 <i class="ph ph-clipboard-text nav-icon"></i>
-                <span>테스트 진행 관리</span>
+                <span>테스트 케이스 조회</span>
             </a>
             <a class="nav-item" th:href="@{/defect}">
                 <i class="ph ph-bug nav-icon"></i>
-                <span>결함 관리</span>
+                <span>테스트 수행 결과(결함조회)</span>
             </a>
-            <a class="nav-item" th:href="@{/admin/users}">
+            <a class="nav-item" th:if="${session.loginUser != null and session.loginUser.role == 'PMO'}" th:href="@{/admin/users}">
                 <i class="ph ph-users nav-icon"></i>
                 <span>사용자 관리</span>
             </a>
-            <a class="nav-item" th:href="@{/admin/codes}">
+            <a class="nav-item" th:if="${session.loginUser != null and session.loginUser.role == 'PMO'}" th:href="@{/admin/codes}">
                 <i class="ph ph-tag nav-icon"></i>
                 <span>공통코드 관리</span>
             </a>

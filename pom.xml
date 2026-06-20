@@ -113,6 +113,9 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
 		</plugins>
+		
+		<finalName>hktms</finalName>
+
 	</build>
 
 </project>

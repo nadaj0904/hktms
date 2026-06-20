@@ -10,7 +10,7 @@ $(function () {
 function loadUserInfo() {
     sendAjax('/api/v1/session/user', 'GET', null, function (res) {
         const u = res.data;
-        if (u) { $('#userAvatar').text(u.userName.charAt(0)); $('#userName').text(u.userName + ' 님'); }
+        if (u) { $('#userAvatar').text(u.userName.charAt(0)); $('#userName').text(u.userName + ' 님(' + roleLabel(u.role) + ')'); }
     }, function(){});
 }
 

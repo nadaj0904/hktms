@@ -1,6 +1,7 @@
 var currentPage    = 1;
-var currentSize    = 20;
+var currentSize    = 10;
 var currentDefectId = null;
+var currentUserRole = null;
 var pendingFiles   = [];   // 등록 모드에서 임시 보관하는 파일 목록
 
 var ALLOWED_EXTS   = ['pdf','ppt','pptx','xls','xlsx','doc','docx','hwp','hwpx','jpg','jpeg','png'];
@@ -17,7 +18,11 @@ $(function () {
 function loadUserInfo() {
     sendAjax('/api/v1/session/user', 'GET', null, function (res) {
         var u = res.data;
-        if (u) { $('#userAvatar').text(u.userName.charAt(0)); $('#userName').text(u.userName + ' 님'); }
+        if (u) {
+            $('#userAvatar').text(u.userName.charAt(0));
+            $('#userName').text(u.userName + ' 님(' + roleLabel(u.role) + ')');
+            currentUserRole = u.role;
+        }
     }, function(){});
 }
 
@@ -34,8 +39,10 @@ function loadCodes() {
 
         var biz = res.data.businessCategories || [];
         var $biz = $('#defectBusinessUnit');
+        var $filterBiz = $('#filterDefectBusinessUnit');
         biz.forEach(function (c) {
             $biz.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
+            $filterBiz.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
         });
 
         // 테스트케이스 상세에서 넘어온 경우 자동 pre-fill
@@ -91,7 +98,40 @@ function preFillFromTestCase() {
 }
 
 /* =========================================
-   카스케이드 드롭다운
+   필터 카스케이드 드롭다운
+   ========================================= */
+function loadFilterDefectMajorCategories(businessUnit) {
+    var url = '/api/v1/defect/categories?businessUnit=' + encodeURIComponent(businessUnit) + '&level=MAJOR';
+    sendAjax(url, 'GET', null, function (res) {
+        var $sel = $('#filterDefectMajorCategory').empty()
+            .append('<option value="">대분류 전체</option>')
+            .prop('disabled', false);
+        (res.data || []).forEach(function (c) {
+            $sel.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
+        });
+    }, function(){});
+}
+
+function loadFilterDefectMiddleCategories(businessUnit, majorCodeValue) {
+    var url = '/api/v1/defect/categories?businessUnit=' + encodeURIComponent(businessUnit)
+            + '&level=MIDDLE&parentCodeValue=' + encodeURIComponent(majorCodeValue);
+    sendAjax(url, 'GET', null, function (res) {
+        var $sel = $('#filterDefectMiddleCategory').empty()
+            .append('<option value="">중분류 전체</option>')
+            .prop('disabled', false);
+        (res.data || []).forEach(function (c) {
+            $sel.append('<option value="' + escHtml(c.codeValue) + '">' + escHtml(c.codeName) + '</option>');
+        });
+    }, function(){});
+}
+
+function resetFilterDefectCascade() {
+    $('#filterDefectMajorCategory').empty().append('<option value="">대분류 전체</option>').prop('disabled', true);
+    $('#filterDefectMiddleCategory').empty().append('<option value="">중분류 전체</option>').prop('disabled', true);
+}
+
+/* =========================================
+   카스케이드 드롭다운 (등록/수정 폼)
    ========================================= */
 function loadMajorCategories(businessUnit, selectedValue) {
     var url = '/api/v1/defect/categories?businessUnit=' + encodeURIComponent(businessUnit) + '&level=MAJOR';
@@ -126,10 +166,13 @@ function loadMiddleCategories(businessUnit, majorCodeValue, selectedValue) {
 function loadList(page) {
     currentPage = page || 1;
     var param = {
-        keyword:      $('#searchKeyword').val(),
-        searchStatus: $('#searchStatus').val(),
-        page:         currentPage,
-        size:         currentSize
+        keyword:              $('#searchKeyword').val(),
+        searchStatus:         $('#searchStatus').val(),
+        searchBusinessUnit:   $('#filterDefectBusinessUnit').val(),
+        searchMajorCategory:  $('#filterDefectMajorCategory').val(),
+        searchMiddleCategory: $('#filterDefectMiddleCategory').val(),
+        page:                 currentPage,
+        size:                 currentSize
     };
     sendAjax('/api/v1/defect?' + $.param(param), 'GET', null, function (res) {
         renderTable(res.data.list || []);
@@ -145,7 +188,7 @@ function renderTable(list) {
     var $body = $('#defectTableBody');
     $body.empty();
     if (!list.length) {
-        $body.html('<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">데이터가 없습니다.</td></tr>');
+        $body.html('<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text-muted);">데이터가 없습니다.</td></tr>');
         return;
     }
     list.forEach(function (item, idx) {
@@ -162,22 +205,28 @@ function renderTable(list) {
         } else {
             buCell = escHtml(item.businessName || '-');
         }
+        var titleCell = item.testCaseName
+            ? escHtml(item.testCaseName)
+            : escHtml(item.title || '-');
+        var tcContentCell = item.content
+            ? '<span style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;" title="' + escHtml(item.content) + '">' + escHtml(item.content) + '</span>'
+            : '-';
         var tr = '<tr class="clickable-row" data-id="' + item.defectId + '">'
             + '<td>' + no + '</td>'
             + '<td>' + buCell + '</td>'
-            + '<td style="max-width:180px;" title="' + escHtml(item.title) + '">' + escHtml(item.title) + '</td>'
-            + '<td>' + escHtml(item.testCaseName||'-') + '</td>'
+            + '<td style="max-width:180px;" title="' + escHtml(item.testCaseName || item.title) + '">' + titleCell + '</td>'
+            + '<td style="max-width:200px;">' + tcContentCell + '</td>'
             + '<td>' + escHtml(item.registrantName||'-') + '</td>'
             + '<td>' + escHtml(item.developerName||'-') + '</td>'
             + '<td>' + defectStatusBadge(item.defectStatus) + '</td>'
             + '<td><span class="fix-content-cell" title="' + escHtml(item.fixContent) + '">' + escHtml(item.fixContent||'-') + '</span></td>'
-            + '<td>' + finalBadge + '</td>'
-            + '<td>' + formatDateTime(item.createdAt) + '</td>'
+            + '<td style="white-space:nowrap;">' + finalBadge + '</td>'
+            + '<td style="white-space:nowrap;">' + formatDateTime(item.createdAt) + '</td>'
             + '<td style="white-space:nowrap;">'
             +   '<div style="display:flex;gap:4px;">'
-            +     '<button class="btn btn-primary btn-sm btn-status-change" data-id="' + item.defectId + '"><i class="ph ph-arrows-clockwise"></i> 상태변경</button>'
+            +     '<button class="btn btn-primary btn-sm btn-detail-open" data-id="' + item.defectId + '"><i class="ph ph-clipboard-text"></i> 조치등록</button>'
             +     '<button class="btn btn-secondary btn-sm btn-edit" data-id="' + item.defectId + '"><i class="ph ph-pencil-simple"></i> 수정</button>'
-            +     '<button class="btn btn-danger btn-sm btn-delete" data-id="' + item.defectId + '"><i class="ph ph-trash"></i> 삭제</button>'
+            +     '<button class="btn btn-danger btn-sm btn-delete" data-id="' + item.defectId + '" style="display:none;"><i class="ph ph-trash"></i> 삭제</button>'
             +   '</div>'
             + '</td>'
             + '</tr>';
@@ -195,7 +244,27 @@ function bindEvents() {
     $('#btnDefectSave').on('click', saveDefect);
     $('#btnDefectStatusSave').on('click', saveDefectStatus);
 
-    // 업무단위 변경 → 대분류 로드
+    // 필터 카스케이드: 업무단위 → 대분류
+    $('#filterDefectBusinessUnit').on('change', function () {
+        var bu = $(this).val();
+        resetFilterDefectCascade();
+        if (bu) loadFilterDefectMajorCategories(bu);
+        loadList(1);
+    });
+
+    // 필터 카스케이드: 대분류 → 중분류
+    $('#filterDefectMajorCategory').on('change', function () {
+        var bu  = $('#filterDefectBusinessUnit').val();
+        var maj = $(this).val();
+        $('#filterDefectMiddleCategory').empty().append('<option value="">중분류 전체</option>').prop('disabled', !maj);
+        if (bu && maj) loadFilterDefectMiddleCategories(bu, maj);
+        loadList(1);
+    });
+
+    // 필터 중분류 변경 → 즉시 재조회
+    $('#filterDefectMiddleCategory').on('change', function () { loadList(1); });
+
+    // 업무단위 변경 → 대분류 로드 (등록/수정 폼)
     $('#defectBusinessUnit').on('change', function () {
         var bu = $(this).val();
         $('#defectMajorCategory').empty().append('<option value="">선택</option>').prop('disabled', !bu);
@@ -215,7 +284,7 @@ function bindEvents() {
     $(document).on('click', '.modal-overlay', function (e) {
         if ($(e.target).hasClass('modal-overlay')) {
             var id = $(e.target).attr('id');
-            if (id !== 'defectFormModal') closeModal(id);
+            if (id !== 'defectFormModal' && id !== 'defectDetailModal') closeModal(id);
         }
     });
 
@@ -225,9 +294,9 @@ function bindEvents() {
         openDetailModal($(this).data('id'));
     });
 
-    $('#defectTableBody').on('click', '.btn-edit',          function () { openEditModal($(this).data('id')); });
-    $('#defectTableBody').on('click', '.btn-delete',        function () { if (confirm('삭제하시겠습니까?')) deleteDefect($(this).data('id')); });
-    $('#defectTableBody').on('click', '.btn-status-change', function () { openStatusModal($(this).data('id')); });
+    $('#defectTableBody').on('click', '.btn-edit',        function () { openEditModal($(this).data('id')); });
+    $('#defectTableBody').on('click', '.btn-delete',      function () { if (confirm('삭제하시겠습니까?')) deleteDefect($(this).data('id')); });
+    $('#defectTableBody').on('click', '.btn-detail-open', function () { openDetailModal($(this).data('id')); });
 
     // 상태 선택 시 스텝 업데이트
     $('#defectStatusValue').on('change', function () { updateStatusSteps($(this).val()); });
@@ -549,6 +618,12 @@ function openDetailModal(defectId) {
         $('#detailStatusFixContent').val(d.fixContent || '');
         updateDetailStatusSteps(d.defectStatus || 'ANALYSIS');
 
+        // 역할별 버튼 가시성
+        // 수정: PMO, USER(현업사용자)만 표시
+        $('#btnDetailEdit').toggle(currentUserRole === 'PMO' || currentUserRole === 'USER');
+        // 조치등록: DEVELOPER, PMO만 표시
+        $('#btnDetailStatusSave').toggle(currentUserRole === 'DEVELOPER' || currentUserRole === 'PMO');
+
         openModal('defectDetailModal');
     });
 }
@@ -560,9 +635,9 @@ function saveDetailStatus() {
         fixContent:    $('#detailStatusFixContent').val().trim() || null
     };
     sendAjax('/api/v1/defect/' + currentDefectId + '/status', 'PUT', data, function () {
-        // 상세 모달 내용 새로고침
-        openDetailModal(currentDefectId);
+        closeModal('defectDetailModal');
         loadList(currentPage);
+        alert('조치등록 되었습니다.');
     });
 }
 

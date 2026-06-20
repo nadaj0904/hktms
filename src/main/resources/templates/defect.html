@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf"        th:name="_csrf"        th:content="${_csrf.token}">
     <meta name="_csrf_header" th:name="_csrf_header" th:content="${_csrf.headerName}">
-    <title>결함 관리 - TMS</title>
+    <title>테스트 수행 결과(결함조회) - TMS</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web">
     <link rel="stylesheet" th:href="@{/css/index.css}">
@@ -18,15 +18,15 @@
 <div class="app-layout">
     <aside class="sidebar">
         <div class="logo-area">
-            <img th:src="@{/img/customerCI.png}" alt="CI" class="logo-img">
+            <a th:href="@{/dashboard}" style="display:block;"><img th:src="@{/img/customerCI.png}" alt="CI" class="logo-img"></a>
         </div>
         <nav class="nav-menu">
             <p class="nav-section-title">메뉴</p>
             <a class="nav-item" th:href="@{/dashboard}"><i class="ph ph-squares-four nav-icon"></i><span>대시보드</span></a>
-            <a class="nav-item" th:href="@{/testcase}"><i class="ph ph-clipboard-text nav-icon"></i><span>테스트 진행 관리</span></a>
-            <a class="nav-item active" th:href="@{/defect}"><i class="ph ph-bug nav-icon"></i><span>결함 관리</span></a>
-            <a class="nav-item" th:href="@{/admin/users}"><i class="ph ph-users nav-icon"></i><span>사용자 관리</span></a>
-            <a class="nav-item" th:href="@{/admin/codes}"><i class="ph ph-tag nav-icon"></i><span>공통코드 관리</span></a>
+            <a class="nav-item" th:href="@{/testcase}"><i class="ph ph-clipboard-text nav-icon"></i><span>테스트 케이스 조회</span></a>
+            <a class="nav-item active" th:href="@{/defect}"><i class="ph ph-bug nav-icon"></i><span>테스트 수행 결과(결함조회)</span></a>
+            <a class="nav-item" th:if="${session.loginUser != null and session.loginUser.role == 'PMO'}" th:href="@{/admin/users}"><i class="ph ph-users nav-icon"></i><span>사용자 관리</span></a>
+            <a class="nav-item" th:if="${session.loginUser != null and session.loginUser.role == 'PMO'}" th:href="@{/admin/codes}"><i class="ph ph-tag nav-icon"></i><span>공통코드 관리</span></a>
         </nav>
         <div class="sidebar-footer">
             <a class="nav-item" th:href="@{/logout}"><i class="ph ph-sign-out nav-icon"></i><span>로그아웃</span></a>
@@ -36,7 +36,7 @@
     <div class="main-wrapper">
         <header class="topbar">
             <div class="topbar-left">
-                <div class="page-title">결함 관리</div>
+                <div class="page-title">테스트 수행 결과(결함조회)</div>
                 <div class="page-subtitle">결함을 등록하고 처리 상태를 관리합니다</div>
             </div>
             <div class="topbar-right">
@@ -53,23 +53,32 @@
             </div>
         </header>
 
-        <main class="content-area">
-            <!-- 필터 바 -->
-            <div class="filter-bar">
-                <input type="text" id="searchKeyword" class="form-control search-input" placeholder="제목, 업무명, 내용 검색">
-                <select id="searchStatus" class="form-control">
-                    <option value="">전체 상태</option>
-                    <option value="ANALYSIS">분석중</option>
-                    <option value="FIXING">조치중</option>
-                    <option value="FIX_COMPLETE">조치완료</option>
-                    <option value="RETEST">재테스트중</option>
-                    <option value="CLOSED">종료</option>
-                </select>
-                <button class="btn btn-primary" id="btnSearch"><i class="ph ph-magnifying-glass"></i> 검색</button>
-                <div style="flex:1;"></div>
-                <button class="btn btn-primary" id="btnCreate"><i class="ph ph-plus"></i> 결함 등록</button>
-            </div>
+        <!-- 필터 바 (고정 영역 - 스크롤 밖) -->
+        <div class="filter-bar">
+            <select id="filterDefectBusinessUnit" class="form-control" style="min-width:130px;">
+                <option value="">업무단위 전체</option>
+            </select>
+            <select id="filterDefectMajorCategory" class="form-control" style="min-width:130px;" disabled>
+                <option value="">대분류 전체</option>
+            </select>
+            <select id="filterDefectMiddleCategory" class="form-control" style="min-width:130px;" disabled>
+                <option value="">중분류 전체</option>
+            </select>
+            <input type="text" id="searchKeyword" class="form-control search-input" placeholder="제목 검색">
+            <select id="searchStatus" class="form-control">
+                <option value="">전체 상태</option>
+                <option value="ANALYSIS">분석중</option>
+                <option value="FIXING">조치중</option>
+                <option value="FIX_COMPLETE">조치완료</option>
+                <option value="RETEST">재테스트중</option>
+                <option value="CLOSED">종료</option>
+            </select>
+            <button class="btn btn-primary" id="btnSearch"><i class="ph ph-magnifying-glass"></i> 검색</button>
+            <div style="flex:1;"></div>
+            <button class="btn btn-primary" id="btnCreate"><i class="ph ph-plus"></i> 결함 등록</button>
+        </div>
 
+        <main class="content-area">
             <!-- 테이블 -->
             <div class="card">
                 <div class="card-header">
@@ -83,19 +92,19 @@
                                 <tr>
                                     <th>No.</th>
                                     <th>업무단위 / 대분류</th>
-                                    <th>제목</th>
-                                    <th>테스트케이스</th>
+                                    <th>테스트명</th>
+                                    <th>결함내용</th>
                                     <th>등록자</th>
                                     <th>담당개발자</th>
                                     <th>상태</th>
                                     <th>조치내용</th>
-                                    <th>최종종료</th>
-                                    <th>등록일시</th>
-                                    <th>관리</th>
+                                    <th style="white-space:nowrap; width:70px;">최종종료</th>
+                                    <th style="white-space:nowrap; width:110px;">등록일시</th>
+                                    <th style="white-space:nowrap;">관리</th>
                                 </tr>
                             </thead>
                             <tbody id="defectTableBody">
-                                <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted);">데이터를 불러오는 중...</td></tr>
+                                <tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text-muted);">데이터를 불러오는 중...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -146,7 +155,7 @@
                     <input type="text" id="defectTitle" class="form-control" placeholder="결함 제목 입력">
                 </div>
                 <div class="form-group span-2">
-                    <label class="form-label">상세내용 <span style="color:var(--danger-color);">*</span></label>
+                    <label class="form-label">결함내용 <span style="color:var(--danger-color);">*</span></label>
                     <textarea id="defectContent" class="form-control" rows="4" placeholder="결함 상세 내용을 입력하세요"></textarea>
                 </div>
                 <div class="form-group span-2">
@@ -331,8 +340,8 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" data-close="defectDetailModal"><i class="ph ph-x"></i> 닫기</button>
-            <button class="btn btn-warning" id="btnDetailEdit"><i class="ph ph-pencil-simple"></i> 수정</button>
-            <button class="btn btn-primary" id="btnDetailStatusSave"><i class="ph ph-check"></i> 상태 저장</button>
+            <button class="btn btn-warning" id="btnDetailEdit" style="display:none;"><i class="ph ph-pencil-simple"></i> 수정</button>
+            <button class="btn btn-primary" id="btnDetailStatusSave" style="display:none;"><i class="ph ph-check"></i> 조치등록</button>
         </div>
     </div>
 </div>

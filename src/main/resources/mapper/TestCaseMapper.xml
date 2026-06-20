@@ -6,7 +6,7 @@
     <sql id="baseColumns">
         tc.test_case_id, tc.business_unit,
         tc.major_category, tc.middle_category, tc.minor_category,
-        tc.test_case_name, tc.test_content,
+        tc.test_case_name, tc.test_content, tc.input_data, tc.expected_result,
         tc.developer_id, du.user_name AS developer_name,
         tc.tester_id,    tu.user_name AS tester_name,
         tc.is_test_available, tc.test_status,
@@ -64,7 +64,7 @@
             AND sc.code_group_id = (SELECT code_group_id FROM TB_HKTMS_CODE_GROUP WHERE group_code = 'TEST_STATUS' AND deleted_at IS NULL LIMIT 1)
         <include refid="categoryJoins"/>
         <include refid="searchCondition"/>
-        ORDER BY tc.test_case_id ASC
+        ORDER BY tc.created_at DESC
         LIMIT #{size} OFFSET #{offset}
     </select>
 
@@ -88,12 +88,12 @@
     <insert id="insert" parameterType="com.hktms.tsys.domain.TestCaseDTO">
         INSERT INTO TB_HKTMS_TEST_CASE
             (business_unit, major_category, middle_category, minor_category,
-             test_case_name, test_content,
+             test_case_name, test_content, input_data, expected_result,
              developer_id, tester_id, is_test_available, test_status, remark,
              created_id, created_at)
         VALUES
             (#{businessUnit}, #{majorCategory}, #{middleCategory}, #{minorCategory},
-             #{testCaseName}, #{testContent},
+             #{testCaseName}, #{testContent}, #{inputData}, #{expectedResult},
              #{developerId}, #{testerId}, COALESCE(#{isTestAvailable}, TRUE), COALESCE(#{testStatus}, 'READY'), #{remark},
              #{createdId}, NOW())
     </insert>
@@ -106,6 +106,8 @@
             minor_category      = #{minorCategory},
             test_case_name      = #{testCaseName},
             test_content        = #{testContent},
+            input_data          = #{inputData},
+            expected_result     = #{expectedResult},
             developer_id        = #{developerId},
             tester_id           = #{testerId},
             is_test_available   = #{isTestAvailable},

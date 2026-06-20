@@ -15,6 +15,8 @@ public class TestCaseDTO {
     private String minorCategoryName;
     private String testCaseName;
     private String testContent;
+    private String inputData;
+    private String expectedResult;
     private Long developerId;
     private String developerName;
     private Long testerId;
@@ -63,6 +65,10 @@ public class TestCaseDTO {
     public void setTestCaseName(String testCaseName) { this.testCaseName = testCaseName; }
     public String getTestContent() { return testContent; }
     public void setTestContent(String testContent) { this.testContent = testContent; }
+    public String getInputData() { return inputData; }
+    public void setInputData(String inputData) { this.inputData = inputData; }
+    public String getExpectedResult() { return expectedResult; }
+    public void setExpectedResult(String expectedResult) { this.expectedResult = expectedResult; }
     public Long getDeveloperId() { return developerId; }
     public void setDeveloperId(Long developerId) { this.developerId = developerId; }
     public String getDeveloperName() { return developerName; }

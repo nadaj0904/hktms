@@ -22,7 +22,9 @@ public class UserController {
     }
 
     @GetMapping("/admin/users")
-    public String userAdminPage() {
+    public String userAdminPage(HttpSession session) {
+        UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
+        if (loginUser == null || !"PMO".equals(loginUser.getRole())) return "redirect:/dashboard";
         return "userAdmin";
     }
 

@@ -56,13 +56,14 @@ public class DefectService {
     }
 
     @Transactional
-    public void createDefect(DefectDTO defect, UserDTO actor) {
+    public Long createDefect(DefectDTO defect, UserDTO actor) {
         defect.setCreatedId(id(actor));
         defect.setRegistrantId(id(actor));
         defectMapper.insert(defect);
         auditLogService.log("DF_CREATE", id(actor), name(actor),
                 defect.getDefectId(), null, null,
                 "결함 등록: " + defect.getTitle());
+        return defect.getDefectId();
     }
 
     @Transactional

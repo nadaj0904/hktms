@@ -61,6 +61,18 @@
         ORDER BY user_name
     </select>
 
+    <select id="findByRoles" resultType="com.hktms.tsys.domain.UserDTO">
+        SELECT user_id, user_name, role, organization
+        FROM TB_HKTMS_USER
+        WHERE role IN
+        <foreach item="r" collection="list" open="(" separator="," close=")">
+            #{r}
+        </foreach>
+          AND is_active = TRUE
+          AND deleted_at IS NULL
+        ORDER BY user_name
+    </select>
+
     <insert id="insert" parameterType="com.hktms.tsys.domain.UserDTO">
         INSERT INTO TB_HKTMS_USER
             (login_id, user_name, password, organization, role, email, phone, is_active, created_id, created_at)

@@ -118,12 +118,15 @@ public class TestCaseController {
 
     @GetMapping("/api/v1/testcase/codes")
     @ResponseBody
-    public ApiResponse<Map<String, Object>> getCodes() {
-        Map<String, Object> codes = Map.of(
-            "testStatusCodes", codeService.getTestStatusCodes(),
-            "users", userService.getAllActiveUsers(),
-            "businessCategories", codeService.getBusinessCategoryCodes()
-        );
+    public ApiResponse<Map<String, Object>> getCodes(HttpSession session) {
+        UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
+        Map<String, Object> codes = new java.util.HashMap<>();
+        codes.put("testStatusCodes",    codeService.getTestStatusCodes());
+        codes.put("developers",         userService.getDeveloperList());
+        codes.put("testers",            userService.getTesterList());
+        codes.put("businessCategories", codeService.getBusinessCategoryCodes());
+        codes.put("loginUserId",        loginUser != null ? loginUser.getUserId() : null);
+        codes.put("loginUserRole",      loginUser != null ? loginUser.getRole()   : null);
         return ApiResponse.success("조회 성공", codes);
     }
 
