@@ -1,3 +1,25 @@
+/* =========================================
+   팝업 헤더 색상 (#4BB8FA)
+   ========================================= */
+#groupFormModal .modal-header,
+#codeFormModal .modal-header {
+    background: #4BB8FA;
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+    border-radius: 16px 16px 0 0;
+}
+#groupFormModal .modal-header .modal-title,
+#codeFormModal .modal-header .modal-title {
+    color: #fff;
+}
+#groupFormModal .modal-header .modal-close,
+#codeFormModal .modal-header .modal-close {
+    color: rgba(255, 255, 255, 0.8);
+}
+#groupFormModal .modal-header .modal-close:hover,
+#codeFormModal .modal-header .modal-close:hover {
+    color: #fff;
+}
+
 .code-admin-layout {
   display: grid;
   grid-template-columns: 320px 1fr;

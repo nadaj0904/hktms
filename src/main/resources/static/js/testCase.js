@@ -183,6 +183,9 @@ function renderTable(list) {
         const deleteBtnHtml = (currentUserRole === 'PMO' || currentUserRole === 'USER')
             ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); if(confirm('삭제하시겠습니까?')) deleteTc(${item.testCaseId})"><i class="ph ph-trash"></i> 삭제</button>`
             : '';
+        const editBtnHtml = (currentUserRole !== 'DEVELOPER') && (item.testStatus !== 'SUCCESS' || currentUserRole === 'ADMIN')
+            ? `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openEditModal(${item.testCaseId})"><i class="ph ph-pencil-simple"></i> 수정</button>`
+            : '';
         const tr = `<tr class="clickable-row" data-id="${item.testCaseId}">
             <td>${no}</td>
             <td>${escHtml(item.businessUnitName || item.businessUnit || '-')}</td>
@@ -198,7 +201,7 @@ function renderTable(list) {
             <td>${retestBadge}</td>
             <td style="white-space:nowrap;">
                 <div style="display:flex;gap:4px;">
-                    <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openEditModal(${item.testCaseId})"><i class="ph ph-pencil-simple"></i> 수정</button>
+                    ${editBtnHtml}
                     ${deleteBtnHtml}
                 </div>
             </td>
@@ -552,6 +555,19 @@ function openTcDetailModal(tcId) {
         $('#tcDetailRetestValue').val(d.isRetestRequested ? 'true' : 'false');
         $('#tcDetailResultInput').val(d.testResult || '');
         updateTcDetailStatusSteps(d.testStatus || 'READY');
+
+        // DEVELOPER는 수정 불가 / 완료 상태는 ADMIN만 수정 가능
+        if (currentUserRole === 'DEVELOPER') {
+            $('#btnTcDetailEdit').hide();
+        } else if (d.testStatus === 'SUCCESS') {
+            if (currentUserRole === 'ADMIN') {
+                $('#btnTcDetailEdit').show();
+            } else {
+                $('#btnTcDetailEdit').hide();
+            }
+        } else {
+            $('#btnTcDetailEdit').show();
+        }
 
         openModal('tcDetailModal');
     });

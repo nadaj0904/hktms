@@ -97,6 +97,18 @@ function bindEvents() {
         if ($(e.target).hasClass('modal-overlay')) closeModal($(e.target).attr('id'));
     });
 
+    $('#btnTogglePassword').on('click', function () {
+        const $input = $('#userPassword');
+        const $icon  = $('#togglePasswordIcon');
+        if ($input.attr('type') === 'password') {
+            $input.attr('type', 'text');
+            $icon.removeClass('ph-eye').addClass('ph-eye-slash');
+        } else {
+            $input.attr('type', 'password');
+            $icon.removeClass('ph-eye-slash').addClass('ph-eye');
+        }
+    });
+
     $('#userTableBody').on('click', '.btn-toggle', function () {
         const id = $(this).data('id');
         const isActive = String($(this).data('active')) === 'true';
@@ -116,7 +128,8 @@ function openCreateModal() {
     $('#userFormTitle').text('사용자 등록');
     $('#userId').val('');
     $('#userLoginId').val('').prop('readonly', false);
-    $('#userPassword').val('');
+    $('#userPassword').val('').attr('type', 'password');
+    $('#togglePasswordIcon').removeClass('ph-eye-slash').addClass('ph-eye');
     $('#userNameInput, #userOrganization, #userEmail, #userPhone').val('');
     $('#userRole').val('USER');
     $('#userIsActive').val('true');

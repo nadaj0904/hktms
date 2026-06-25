@@ -1,15 +1,18 @@
 package com.hktms.tsys.controller;
 
+import com.hktms.tsys.domain.AttachmentDTO;
 import com.hktms.tsys.domain.CodeDTO;
 import com.hktms.tsys.domain.DefectDTO;
 import com.hktms.tsys.domain.UserDTO;
 import com.hktms.tsys.domain.common.ApiResponse;
+import com.hktms.tsys.service.AttachmentService;
 import com.hktms.tsys.service.CodeService;
 import com.hktms.tsys.service.DefectService;
 import com.hktms.tsys.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -20,11 +23,14 @@ public class DefectController {
     private final DefectService defectService;
     private final UserService userService;
     private final CodeService codeService;
+    private final AttachmentService attachmentService;
 
-    public DefectController(DefectService defectService, UserService userService, CodeService codeService) {
+    public DefectController(DefectService defectService, UserService userService,
+                            CodeService codeService, AttachmentService attachmentService) {
         this.defectService = defectService;
         this.userService = userService;
         this.codeService = codeService;
+        this.attachmentService = attachmentService;
     }
 
     @GetMapping("/defect")
@@ -82,9 +88,33 @@ public class DefectController {
 
     @PutMapping("/api/v1/defect/{defectId}/status")
     @ResponseBody
-    public ApiResponse<Void> updateStatus(@PathVariable Long defectId, @RequestBody DefectDTO dto, HttpSession session) {
+    public ApiResponse<Void> updateStatus(
+            @PathVariable Long defectId,
+            @RequestParam String defectStatus,
+            @RequestParam(required = false) String fixContent,
+            @RequestParam(defaultValue = "false") boolean isFinalClosed,
+            @RequestParam(required = false) MultipartFile fixFile,
+            HttpSession session) {
         UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
+        Long actorId = loginUser != null ? loginUser.getUserId() : null;
+
+        DefectDTO dto = new DefectDTO();
         dto.setDefectId(defectId);
+        dto.setDefectStatus(defectStatus);
+        dto.setFixContent(fixContent);
+        dto.setIsFinalClosed(isFinalClosed);
+
+        if (fixFile != null && !fixFile.isEmpty()) {
+            try {
+                AttachmentDTO att = attachmentService.upload(fixFile, "DEFECT_FIX", defectId, actorId);
+                dto.setFixAttachmentId(att.getAttachmentId());
+            } catch (IllegalArgumentException e) {
+                return ApiResponse.error(e.getMessage());
+            } catch (Exception e) {
+                return ApiResponse.error("파일 업로드 중 오류가 발생했습니다.");
+            }
+        }
+
         defectService.updateStatus(dto, loginUser);
         return ApiResponse.success("상태가 변경되었습니다.", null);
     }

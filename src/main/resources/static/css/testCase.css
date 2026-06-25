@@ -1,5 +1,38 @@
 /* 테스트케이스 관리 전용 스타일 */
 
+/* =========================================
+   팝업 헤더 공통 색상 (#4BB8FA)
+   ========================================= */
+#tcFormModal .modal-header,
+#tcStatusModal .modal-header,
+#fromTcDefectModal .modal-header,
+#tcDetailModal .modal-header {
+    background: #4BB8FA;
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+    border-radius: 16px 16px 0 0;
+}
+#tcFormModal .modal-header .modal-title,
+#tcStatusModal .modal-header .modal-title,
+#fromTcDefectModal .modal-header .modal-title,
+#tcDetailModal .modal-header .modal-title {
+    color: #fff;
+}
+#tcDetailModal .modal-header #tcDetailNo {
+    color: rgba(255, 255, 255, 0.75);
+}
+#tcFormModal .modal-header .modal-close,
+#tcStatusModal .modal-header .modal-close,
+#fromTcDefectModal .modal-header .modal-close,
+#tcDetailModal .modal-header .modal-close {
+    color: rgba(255, 255, 255, 0.8);
+}
+#tcFormModal .modal-header .modal-close:hover,
+#tcStatusModal .modal-header .modal-close:hover,
+#fromTcDefectModal .modal-header .modal-close:hover,
+#tcDetailModal .modal-header .modal-close:hover {
+    color: #fff;
+}
+
 .tc-toolbar {
     display: flex;
     align-items: center;

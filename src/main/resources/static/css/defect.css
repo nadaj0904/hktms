@@ -1,5 +1,59 @@
 /* 결함 관리 전용 스타일 */
 
+/* =========================================
+   조치내용 파일 업로드
+   ========================================= */
+.fix-file-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px dashed var(--border-color);
+    border-radius: 8px;
+}
+.fix-file-name {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.fix-file-name.fix-file-saved {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+/* =========================================
+   팝업 헤더 공통 색상 (#4BB8FA)
+   ========================================= */
+#defectFormModal .modal-header,
+#defectStatusModal .modal-header,
+#defectDetailModal .modal-header {
+    background: #4BB8FA;
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+    border-radius: 16px 16px 0 0;
+}
+#defectFormModal .modal-header .modal-title,
+#defectStatusModal .modal-header .modal-title,
+#defectDetailModal .modal-header .modal-title {
+    color: #fff;
+}
+#defectDetailModal .modal-header #detailDefectNo {
+    color: rgba(255, 255, 255, 0.75);
+}
+#defectFormModal .modal-header .modal-close,
+#defectStatusModal .modal-header .modal-close,
+#defectDetailModal .modal-header .modal-close {
+    color: rgba(255, 255, 255, 0.8);
+}
+#defectFormModal .modal-header .modal-close:hover,
+#defectStatusModal .modal-header .modal-close:hover,
+#defectDetailModal .modal-header .modal-close:hover {
+    color: #fff;
+}
+
 /* 첨부파일 목록 */
 .attachment-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .attachment-item {

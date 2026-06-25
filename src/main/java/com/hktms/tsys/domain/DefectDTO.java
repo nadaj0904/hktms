@@ -32,6 +32,8 @@ public class DefectDTO {
     private Long deletedId;
     private LocalDateTime deletedAt;
     private List<AttachmentDTO> attachments;
+    private Long fixAttachmentId;
+    private AttachmentDTO fixAttachment;
 
     // 검색 파라미터
     private String keyword;
@@ -99,6 +101,10 @@ public class DefectDTO {
     public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
     public List<AttachmentDTO> getAttachments() { return attachments; }
     public void setAttachments(List<AttachmentDTO> attachments) { this.attachments = attachments; }
+    public Long getFixAttachmentId() { return fixAttachmentId; }
+    public void setFixAttachmentId(Long fixAttachmentId) { this.fixAttachmentId = fixAttachmentId; }
+    public AttachmentDTO getFixAttachment() { return fixAttachment; }
+    public void setFixAttachment(AttachmentDTO fixAttachment) { this.fixAttachment = fixAttachment; }
     public String getKeyword() { return keyword; }
     public void setKeyword(String keyword) { this.keyword = keyword; }
     public String getSearchStatus() { return searchStatus; }

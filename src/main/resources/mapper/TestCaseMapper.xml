@@ -128,6 +128,16 @@
         WHERE test_case_id = #{testCaseId}
     </update>
 
+    <update id="updateStatusOnly">
+        UPDATE TB_HKTMS_TEST_CASE SET
+            test_status    = #{testStatus},
+            completed_date = NOW(),
+            updated_id     = #{updatedId},
+            updated_at     = NOW()
+        WHERE test_case_id = #{testCaseId}
+          AND deleted_at IS NULL
+    </update>
+
     <update id="softDelete" parameterType="com.hktms.tsys.domain.TestCaseDTO">
         UPDATE TB_HKTMS_TEST_CASE SET
             deleted_id = #{deletedId},

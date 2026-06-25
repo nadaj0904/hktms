@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf"        th:name="_csrf"        th:content="${_csrf.token}">
     <meta name="_csrf_header" th:name="_csrf_header" th:content="${_csrf.headerName}">
-    <title>테스트 케이스 조회 - TMS</title>
+    <title>HKTMS 통합관리시스템</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web">
     <link rel="stylesheet" th:href="@{/css/index.css}">
@@ -29,9 +29,6 @@
             <a class="nav-item" th:if="${session.loginUser != null and session.loginUser.role == 'PMO'}" th:href="@{/admin/users}"><i class="ph ph-users nav-icon"></i><span>사용자 관리</span></a>
             <a class="nav-item" th:if="${session.loginUser != null and session.loginUser.role == 'PMO'}" th:href="@{/admin/codes}"><i class="ph ph-tag nav-icon"></i><span>공통코드 관리</span></a>
         </nav>
-        <div class="sidebar-footer">
-            <a class="nav-item" th:href="@{/logout}"><i class="ph ph-sign-out nav-icon"></i><span>로그아웃</span></a>
-        </div>
     </aside>
 
     <div class="main-wrapper">
@@ -50,7 +47,7 @@
                     <div class="avatar" id="userAvatar">-</div>
                     <span class="user-name" id="userName">로딩중</span>
                 </div>
-                <a th:href="@{/logout}" class="btn-logout"><i class="ph ph-sign-out"></i></a>
+                <a th:href="@{/logout}" class="btn-logout"><i class="ph ph-sign-out"></i> 로그아웃</a>
             </div>
         </header>
 
@@ -79,7 +76,7 @@
             <div class="tc-toolbar">
                 <button class="btn btn-secondary" id="btnTemplateDownload" style="display:none;"><i class="ph ph-file-arrow-down"></i> 템플릿 다운로드</button>
                 <button class="btn btn-secondary" id="btnExcelDownload" style="display:none;"><i class="ph ph-microsoft-excel-logo"></i> 엑셀 다운로드</button>
-                <button class="btn btn-secondary" id="btnExcelUpload"><i class="ph ph-upload"></i> 엑셀 업로드</button>
+                <button class="btn btn-secondary" id="btnExcelUpload" style="display: none;"><i class="ph ph-upload"></i> 엑셀 업로드</button>
                 <button class="btn btn-primary" id="btnCreate"><i class="ph ph-plus"></i> 신규 등록</button>
             </div>
         </div>
@@ -283,7 +280,7 @@
         <div class="modal-header">
             <div>
                 <span class="modal-title" id="tcDetailTitle">테스트케이스 상세</span>
-                <span id="tcDetailNo" style="font-size:12px;color:var(--text-muted);margin-left:8px;"></span>
+                <span id="tcDetailNo" style="font-size:12px;margin-left:8px;"></span>
             </div>
             <button class="modal-close" data-close="tcDetailModal"><i class="ph ph-x"></i></button>
         </div>
@@ -366,7 +363,6 @@
                     <div class="step-item" data-step="READY">미진행</div>
                     <div class="step-item" data-step="IN_PROGRESS">진행중</div>
                     <div class="step-item" data-step="SUCCESS">완료</div>
-                    <div class="step-item" data-step="FAIL">실패</div>
                     <div class="step-item" data-step="HOLD">보류</div>
                 </div>
                 <div class="form-grid" style="margin-top:14px;">
@@ -376,7 +372,6 @@
                             <option value="READY">미진행</option>
                             <option value="IN_PROGRESS">진행중</option>
                             <option value="SUCCESS">완료</option>
-                            <option value="FAIL">실패</option>
                             <option value="HOLD">보류</option>
                         </select>
                     </div>
@@ -396,10 +391,17 @@
 
         </div>
         <div class="modal-footer">
+            <span style="margin-right:auto; color:#ef4444; font-weight:700; font-size:13px;">
+                ※ 테스트 결과 에러시 ＂결함등록＂ 을 반드시 해주셔야 합니다!
+            </span>
             <button class="btn btn-secondary" data-close="tcDetailModal"><i class="ph ph-x"></i> 닫기</button>
             <button class="btn btn-warning" id="btnTcDetailEdit" onclick="closeModal('tcDetailModal'); openEditModal(currentTcDetailId);"><i class="ph ph-pencil-simple"></i> 수정</button>
-            <button class="btn btn-defect" id="btnTcDetailToDefect" onclick="goToDefectCreate();"><i class="ph ph-bug"></i> 결함 등록</button>
-            <button class="btn btn-primary" id="btnTcDetailStatusSave" onclick="saveTcDetailStatus();"><i class="ph ph-check"></i> 상태 저장</button>
+            <button class="btn btn-defect" id="btnTcDetailToDefect"
+                    th:if="${session.loginUser != null and session.loginUser.role != 'DEVELOPER'}"
+                    onclick="goToDefectCreate();"><i class="ph ph-bug"></i> 결함 등록</button>
+            <button class="btn btn-primary" id="btnTcDetailStatusSave"
+                    th:if="${session.loginUser != null and session.loginUser.role != 'DEVELOPER'}"
+                    onclick="saveTcDetailStatus();"><i class="ph ph-check"></i> 상태 저장</button>
         </div>
     </div>
 </div>

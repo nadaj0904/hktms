@@ -10,7 +10,7 @@
         d.registrant_id, ru.user_name AS registrant_name,
         d.developer_id,  dv.user_name AS developer_name,
         d.defect_status, dc.code_name AS defect_status_name,
-        d.fix_content, d.is_final_closed,
+        d.fix_content, d.is_final_closed, d.fix_attachment_id,
         d.created_id, d.created_at, d.updated_id, d.updated_at,
         bu_c.code_name  AS business_unit_name,
         maj_c.code_name AS major_category_name,
@@ -113,6 +113,7 @@
             defect_status   = #{defectStatus},
             fix_content     = #{fixContent},
             is_final_closed = #{isFinalClosed},
+            <if test="fixAttachmentId != null">fix_attachment_id = #{fixAttachmentId},</if>
             updated_id      = #{updatedId},
             updated_at      = NOW()
         WHERE defect_id = #{defectId}

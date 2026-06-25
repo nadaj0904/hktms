@@ -5,6 +5,7 @@ import com.hktms.tsys.domain.DefectDTO;
 import com.hktms.tsys.domain.UserDTO;
 import com.hktms.tsys.repository.AttachmentMapper;
 import com.hktms.tsys.repository.DefectMapper;
+import com.hktms.tsys.repository.TestCaseMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,12 +18,14 @@ public class DefectService {
 
     private final DefectMapper defectMapper;
     private final AttachmentMapper attachmentMapper;
+    private final TestCaseMapper testCaseMapper;
     private final AuditLogService auditLogService;
 
     public DefectService(DefectMapper defectMapper, AttachmentMapper attachmentMapper,
-                         AuditLogService auditLogService) {
+                         TestCaseMapper testCaseMapper, AuditLogService auditLogService) {
         this.defectMapper = defectMapper;
         this.attachmentMapper = attachmentMapper;
+        this.testCaseMapper = testCaseMapper;
         this.auditLogService = auditLogService;
     }
 
@@ -51,6 +54,20 @@ public class DefectService {
             param.setReferenceType("DEFECT");
             param.setReferenceId(defectId);
             defect.setAttachments(attachmentMapper.findByReference(param));
+
+            // fix_attachment_id로 먼저 조회, 없으면 DEFECT_FIX 레퍼런스로 fallback
+            if (defect.getFixAttachmentId() != null) {
+                defect.setFixAttachment(attachmentMapper.findById(defect.getFixAttachmentId()));
+            }
+            if (defect.getFixAttachment() == null) {
+                AttachmentDTO fixParam = new AttachmentDTO();
+                fixParam.setReferenceType("DEFECT_FIX");
+                fixParam.setReferenceId(defectId);
+                List<AttachmentDTO> fixList = attachmentMapper.findByReference(fixParam);
+                if (!fixList.isEmpty()) {
+                    defect.setFixAttachment(fixList.get(fixList.size() - 1));
+                }
+            }
         }
         return defect;
     }
@@ -85,6 +102,15 @@ public class DefectService {
                 before != null ? before.getDefectStatus() : null,
                 defect.getDefectStatus(),
                 "결함 상태 변경: " + defect.getDefectId());
+
+        // 조치완료 전환 시 연결된 테스트케이스를 자동으로 완료 처리
+        if ("FIX_COMPLETE".equals(defect.getDefectStatus())
+                && before != null && before.getTestCaseId() != null) {
+            testCaseMapper.updateStatusOnly(before.getTestCaseId(), "SUCCESS", id(actor));
+            auditLogService.log("TC_STATUS", id(actor), name(actor),
+                    before.getTestCaseId(), null, "SUCCESS",
+                    "결함 조치완료로 테스트케이스 자동 완료처리: 결함ID=" + defect.getDefectId());
+        }
     }
 
     @Transactional

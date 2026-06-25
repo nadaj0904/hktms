@@ -1,5 +1,51 @@
 /* 사용자 관리 전용 스타일 */
 
+/* =========================================
+   비밀번호 표시/숨김 토글
+   ========================================= */
+.password-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.password-input-wrap .form-control {
+    padding-right: 40px;
+}
+.btn-password-toggle {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: color 0.15s;
+}
+.btn-password-toggle:hover {
+    color: var(--primary-color);
+}
+
+/* =========================================
+   팝업 헤더 색상 (#4BB8FA)
+   ========================================= */
+#userFormModal .modal-header {
+    background: #4BB8FA;
+    border-bottom-color: rgba(255, 255, 255, 0.2);
+    border-radius: 16px 16px 0 0;
+}
+#userFormModal .modal-header .modal-title {
+    color: #fff;
+}
+#userFormModal .modal-header .modal-close {
+    color: rgba(255, 255, 255, 0.8);
+}
+#userFormModal .modal-header .modal-close:hover {
+    color: #fff;
+}
+
 /* 사용 여부 토글 */
 .active-badge  { background: #dcfce7; color: #15803d; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
 .inactive-badge { background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }

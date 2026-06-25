@@ -3,6 +3,8 @@ var currentSize    = 10;
 var currentDefectId = null;
 var currentUserRole = null;
 var pendingFiles   = [];   // 등록 모드에서 임시 보관하는 파일 목록
+var currentFixFile = null;        // 상세 모달 조치내용 첨부파일
+var currentStatusFixFile = null;  // 상태변경 모달 조치내용 첨부파일
 
 var ALLOWED_EXTS   = ['pdf','ppt','pptx','xls','xlsx','doc','docx','hwp','hwpx','jpg','jpeg','png'];
 var BLOCKED_EXTS   = ['exe','bat','cmd','sh','js','jar','war'];
@@ -22,6 +24,9 @@ function loadUserInfo() {
             $('#userAvatar').text(u.userName.charAt(0));
             $('#userName').text(u.userName + ' 님(' + roleLabel(u.role) + ')');
             currentUserRole = u.role;
+            if (currentUserRole === 'DEVELOPER') {
+                $('#defectTableBody .btn-edit').hide();
+            }
         }
     }, function(){});
 }
@@ -225,7 +230,7 @@ function renderTable(list) {
             + '<td style="white-space:nowrap;">'
             +   '<div style="display:flex;gap:4px;">'
             +     '<button class="btn btn-primary btn-sm btn-detail-open" data-id="' + item.defectId + '"><i class="ph ph-clipboard-text"></i> 조치등록</button>'
-            +     '<button class="btn btn-secondary btn-sm btn-edit" data-id="' + item.defectId + '"><i class="ph ph-pencil-simple"></i> 수정</button>'
+            +     (currentUserRole !== 'DEVELOPER' ? '<button class="btn btn-secondary btn-sm btn-edit" data-id="' + item.defectId + '"><i class="ph ph-pencil-simple"></i> 수정</button>' : '')
             +     '<button class="btn btn-danger btn-sm btn-delete" data-id="' + item.defectId + '" style="display:none;"><i class="ph ph-trash"></i> 삭제</button>'
             +   '</div>'
             + '</td>'
@@ -307,6 +312,40 @@ function bindEvents() {
     $('#btnDetailEdit').on('click', function () {
         closeModal('defectDetailModal');
         openEditModal(currentDefectId);
+    });
+
+    // 상세 모달 조치내용 파일
+    $('#btnSelectFixFile').on('click', function () { $('#fixFileInput').click(); });
+    $('#fixFileInput').on('change', function () {
+        var file = this.files[0]; if (!file) return;
+        var err = validateFile(file);
+        if (err) { alert(file.name + '\n' + err); this.value = ''; return; }
+        currentFixFile = file;
+        $('#fixFileName').text(file.name).removeClass('fix-file-saved');
+        $('#btnClearFixFile').show();
+        this.value = '';
+    });
+    $('#btnClearFixFile').on('click', function () {
+        currentFixFile = null;
+        $('#fixFileName').text('선택된 파일 없음').removeClass('fix-file-saved');
+        $(this).hide();
+    });
+
+    // 상태변경 모달 조치내용 파일
+    $('#btnSelectStatusFixFile').on('click', function () { $('#statusFixFileInput').click(); });
+    $('#statusFixFileInput').on('change', function () {
+        var file = this.files[0]; if (!file) return;
+        var err = validateFile(file);
+        if (err) { alert(file.name + '\n' + err); this.value = ''; return; }
+        currentStatusFixFile = file;
+        $('#statusFixFileName').text(file.name);
+        $('#btnClearStatusFixFile').show();
+        this.value = '';
+    });
+    $('#btnClearStatusFixFile').on('click', function () {
+        currentStatusFixFile = null;
+        $('#statusFixFileName').text('선택된 파일 없음');
+        $(this).hide();
     });
 
     // 파일 선택 버튼
@@ -537,6 +576,9 @@ function openStatusModal(defectId) {
         $('#defectStatusValue').val(d.defectStatus || 'ANALYSIS');
         $('#defectFinalClosed').val(d.isFinalClosed ? 'true' : 'false');
         $('#defectStatusFixContent').val(d.fixContent || '');
+        currentStatusFixFile = null;
+        $('#statusFixFileName').text('선택된 파일 없음');
+        $('#btnClearStatusFixFile').hide();
         updateStatusSteps(d.defectStatus || 'ANALYSIS');
         openModal('defectStatusModal');
     });
@@ -544,14 +586,27 @@ function openStatusModal(defectId) {
 
 function saveDefectStatus() {
     var defectId = $('#statusDefectId').val();
-    var data = {
-        defectStatus:  $('#defectStatusValue').val(),
-        isFinalClosed: $('#defectFinalClosed').val() === 'true',
-        fixContent:    $('#defectStatusFixContent').val().trim() || null
-    };
-    sendAjax('/api/v1/defect/' + defectId + '/status', 'PUT', data, function () {
-        closeModal('defectStatusModal');
-        loadList(currentPage);
+    var formData = new FormData();
+    formData.append('defectStatus',  $('#defectStatusValue').val());
+    formData.append('isFinalClosed', String($('#defectFinalClosed').val() === 'true'));
+    var fixContent = $('#defectStatusFixContent').val().trim();
+    if (fixContent) formData.append('fixContent', fixContent);
+    if (currentStatusFixFile) formData.append('fixFile', currentStatusFixFile);
+
+    showLoading();
+    $.ajax({
+        url: '/api/v1/defect/' + defectId + '/status',
+        type: 'PUT',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function (res) {
+            hideLoading();
+            if (res.success) { closeModal('defectStatusModal'); loadList(currentPage); }
+            else alert('처리 실패: ' + res.message);
+        },
+        error: function (xhr) { hideLoading(); alert('서버 오류 (상태 코드: ' + xhr.status + ')'); }
     });
 }
 
@@ -612,10 +667,38 @@ function openDetailModal(defectId) {
         // 첨부파일
         renderDetailAttachments(d.attachments || []);
 
+        // 조치내용 첨부파일 표시
+        if (d.fixAttachment) {
+            var ext = (d.fixAttachment.originalFilename || '').split('.').pop().toLowerCase();
+            var size = d.fixAttachment.fileSize ? ' · ' + (d.fixAttachment.fileSize / 1024).toFixed(1) + 'KB' : '';
+            $('#detailFixAttachItem').html(
+                '<div class="attachment-item">'
+                + '<div class="attachment-item-left">'
+                +   '<i class="ph ph-paperclip attachment-icon ' + extIconClass(ext) + '"></i>'
+                +   '<div>'
+                +     '<a href="/api/v1/attachment/' + d.fixAttachment.attachmentId + '/download" class="attachment-name" target="_blank">' + escHtml(d.fixAttachment.originalFilename) + '</a>'
+                +     '<div class="attachment-size">조치내용 첨부파일' + size + '</div>'
+                +   '</div>'
+                + '</div>'
+                + '<a href="/api/v1/attachment/' + d.fixAttachment.attachmentId + '/download" class="btn btn-secondary btn-sm btn-icon" title="다운로드" target="_blank"><i class="ph ph-download-simple"></i></a>'
+                + '</div>'
+            );
+            $('#detailFixAttachBlock').show();
+        } else {
+            $('#detailFixAttachBlock').hide();
+        }
+
         // 상태 변경 폼 초기값
         $('#detailStatusValue').val(d.defectStatus || 'ANALYSIS');
         $('#detailFinalClosedSelect').val(d.isFinalClosed ? 'true' : 'false');
         $('#detailStatusFixContent').val(d.fixContent || '');
+        currentFixFile = null;
+        if (d.fixAttachment) {
+            $('#fixFileName').text('현재: ' + d.fixAttachment.originalFilename).addClass('fix-file-saved');
+        } else {
+            $('#fixFileName').text('선택된 파일 없음').removeClass('fix-file-saved');
+        }
+        $('#btnClearFixFile').hide();
         updateDetailStatusSteps(d.defectStatus || 'ANALYSIS');
 
         // 역할별 버튼 가시성
@@ -629,15 +712,32 @@ function openDetailModal(defectId) {
 }
 
 function saveDetailStatus() {
-    var data = {
-        defectStatus:  $('#detailStatusValue').val(),
-        isFinalClosed: $('#detailFinalClosedSelect').val() === 'true',
-        fixContent:    $('#detailStatusFixContent').val().trim() || null
-    };
-    sendAjax('/api/v1/defect/' + currentDefectId + '/status', 'PUT', data, function () {
-        closeModal('defectDetailModal');
-        loadList(currentPage);
-        alert('조치등록 되었습니다.');
+    var formData = new FormData();
+    formData.append('defectStatus',  $('#detailStatusValue').val());
+    formData.append('isFinalClosed', String($('#detailFinalClosedSelect').val() === 'true'));
+    var fixContent = $('#detailStatusFixContent').val().trim();
+    if (fixContent) formData.append('fixContent', fixContent);
+    if (currentFixFile) formData.append('fixFile', currentFixFile);
+
+    showLoading();
+    $.ajax({
+        url: '/api/v1/defect/' + currentDefectId + '/status',
+        type: 'PUT',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function (res) {
+            hideLoading();
+            if (res.success) {
+                closeModal('defectDetailModal');
+                loadList(currentPage);
+                alert('조치등록 되었습니다.');
+            } else {
+                alert('처리 실패: ' + res.message);
+            }
+        },
+        error: function (xhr) { hideLoading(); alert('서버 오류 (상태 코드: ' + xhr.status + ')'); }
     });
 }
 

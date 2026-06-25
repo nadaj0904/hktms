@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>로그인 - TMS</title>
+    <title>HKTMS 통합관리시스템</title>
     <link rel="stylesheet" th:href="@{/css/login.css}">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web">
 </head>
@@ -55,8 +55,11 @@
                 <label class="form-label" for="password">비밀번호</label>
                 <div class="input-wrapper">
                     <i class="ph ph-lock input-icon"></i>
-                    <input type="password" id="password" name="password" class="form-control"
+                    <input type="password" id="password" name="password" class="form-control pw-with-toggle"
                            placeholder="비밀번호를 입력하세요" autocomplete="current-password" required>
+                    <button type="button" class="btn-pw-toggle" onclick="toggleLoginPassword()" title="비밀번호 보기">
+                        <i class="ph ph-eye" id="loginPwIcon"></i>
+                    </button>
                 </div>
             </div>
 
@@ -78,5 +81,20 @@
     &copy; 2026 Test Management System. All rights reserved.
 </div>
 
+<script>
+function toggleLoginPassword() {
+    var input = document.getElementById('password');
+    var icon  = document.getElementById('loginPwIcon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('ph-eye');
+        icon.classList.add('ph-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('ph-eye-slash');
+        icon.classList.add('ph-eye');
+    }
+}
+</script>
 </body>
 </html>

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf"        th:name="_csrf"        th:content="${_csrf.token}">
     <meta name="_csrf_header" th:name="_csrf_header" th:content="${_csrf.headerName}">
-    <title>테스트 수행 결과(결함조회) - TMS</title>
+    <title>HKTMS 통합관리시스템</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css">
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web">
     <link rel="stylesheet" th:href="@{/css/index.css}">
@@ -28,9 +28,6 @@
             <a class="nav-item" th:if="${session.loginUser != null and session.loginUser.role == 'PMO'}" th:href="@{/admin/users}"><i class="ph ph-users nav-icon"></i><span>사용자 관리</span></a>
             <a class="nav-item" th:if="${session.loginUser != null and session.loginUser.role == 'PMO'}" th:href="@{/admin/codes}"><i class="ph ph-tag nav-icon"></i><span>공통코드 관리</span></a>
         </nav>
-        <div class="sidebar-footer">
-            <a class="nav-item" th:href="@{/logout}"><i class="ph ph-sign-out nav-icon"></i><span>로그아웃</span></a>
-        </div>
     </aside>
 
     <div class="main-wrapper">
@@ -49,7 +46,7 @@
                     <div class="avatar" id="userAvatar">-</div>
                     <span class="user-name" id="userName">로딩중</span>
                 </div>
-                <a th:href="@{/logout}" class="btn-logout"><i class="ph ph-sign-out"></i></a>
+                <a th:href="@{/logout}" class="btn-logout"><i class="ph ph-sign-out"></i> 로그아웃</a>
             </div>
         </header>
 
@@ -74,7 +71,6 @@
                 <option value="CLOSED">종료</option>
             </select>
             <button class="btn btn-primary" id="btnSearch"><i class="ph ph-magnifying-glass"></i> 검색</button>
-            <div style="flex:1;"></div>
             <button class="btn btn-primary" id="btnCreate"><i class="ph ph-plus"></i> 결함 등록</button>
         </div>
 
@@ -225,6 +221,15 @@
                     <label class="form-label">조치내용</label>
                     <textarea id="defectStatusFixContent" class="form-control" rows="3" placeholder="조치 내용을 입력하세요"></textarea>
                 </div>
+                <div class="form-group span-2">
+                    <label class="form-label">조치내용 첨부파일 <span style="color:var(--text-muted);font-size:11px;">(선택 · 최대 20MB)</span></label>
+                    <div class="fix-file-wrap">
+                        <input type="file" id="statusFixFileInput" accept=".pdf,.ppt,.pptx,.xls,.xlsx,.doc,.docx,.hwp,.hwpx,.jpg,.jpeg,.png" style="display:none;">
+                        <button type="button" class="btn btn-secondary btn-sm" id="btnSelectStatusFixFile"><i class="ph ph-paperclip"></i> 파일 선택</button>
+                        <span id="statusFixFileName" class="fix-file-name">선택된 파일 없음</span>
+                        <button type="button" class="btn btn-danger btn-sm btn-icon" id="btnClearStatusFixFile" style="display:none;"><i class="ph ph-x"></i></button>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="modal-footer">
@@ -240,7 +245,7 @@
         <div class="modal-header">
             <div>
                 <span class="modal-title" id="detailModalTitle">결함 상세</span>
-                <span id="detailDefectNo" style="font-size:12px;color:var(--text-muted);margin-left:8px;"></span>
+                <span id="detailDefectNo" style="font-size:12px;margin-left:8px;"></span>
             </div>
             <button class="modal-close" data-close="defectDetailModal"><i class="ph ph-x"></i></button>
         </div>
@@ -296,6 +301,12 @@
                 </div>
             </div>
 
+            <!-- 조치 첨부파일 -->
+            <div class="detail-attach-section" id="detailFixAttachBlock" style="display:none;">
+                <div class="detail-block-title"><i class="ph ph-paperclip"></i> 조치내용 첨부파일</div>
+                <div id="detailFixAttachItem"></div>
+            </div>
+
             <!-- 첨부파일 -->
             <div class="detail-attach-section" id="detailAttachSection">
                 <div class="detail-block-title"><i class="ph ph-paperclip"></i> 첨부파일</div>
@@ -333,6 +344,15 @@
                     <div class="form-group span-2">
                         <label class="form-label">조치내용 입력</label>
                         <textarea id="detailStatusFixContent" class="form-control" rows="2" placeholder="조치 내용을 입력하세요"></textarea>
+                    </div>
+                    <div class="form-group span-2">
+                        <label class="form-label">조치내용 첨부파일 <span style="color:var(--text-muted);font-size:11px;">(선택 · 최대 20MB)</span></label>
+                        <div class="fix-file-wrap">
+                            <input type="file" id="fixFileInput" accept=".pdf,.ppt,.pptx,.xls,.xlsx,.doc,.docx,.hwp,.hwpx,.jpg,.jpeg,.png" style="display:none;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnSelectFixFile"><i class="ph ph-paperclip"></i> 파일 선택</button>
+                            <span id="fixFileName" class="fix-file-name">선택된 파일 없음</span>
+                            <button type="button" class="btn btn-danger btn-sm btn-icon" id="btnClearFixFile" style="display:none;"><i class="ph ph-x"></i></button>
+                        </div>
                     </div>
                 </div>
             </div>
